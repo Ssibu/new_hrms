@@ -4,11 +4,11 @@ import { Link, useLocation } from 'react-router-dom';
 const Sidebar = () => {
   const location = useLocation();
   const navItems = [
-    { to: '/admin-dashboard', label: 'Dashboard' },
-    { to: '/admin-dashboard/employees', label: 'Employees' },
-    { to: '/admin-dashboard/hr-policy', label: 'HR Policy' },
-    { to: '/admin-dashboard/tasks', label: 'Tasks' },
-    { to: '/admin-dashboard/task-status', label: 'Task Status' },
+    { to: '/layout', label: 'Dashboard' },
+    { to: '/layout/employees', label: 'Employees' },
+    { to: '/layout/hr-policy', label: 'HR Policy' },
+    { to: '/layout/tasks', label: 'Tasks' },
+    { to: '/layout/task-status', label: 'Task Status' },
   ];
 
   return (
