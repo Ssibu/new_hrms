@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Auth from './pages/Auth';
 import Layout from './components/Layout';
 import { useConfig } from './context/ConfigContext';
@@ -15,26 +15,24 @@ function ProtectedRoute({ children }) {
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/auth" element={<Auth />} />
-        <Route
-          path="/layout"
-          element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<div>Welcome to the Dashboard!</div>} />
-          <Route path="employees" element={<EmployeesDetails />} />
-          <Route path="hr-policy" element={<HRPolicy />} />
-          <Route path="tasks" element={<Tasks />} />
-          <Route path="task-status" element={<TaskStatus />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/auth" />} />
-      </Routes>
-    </Router>
+    <Routes>
+      <Route path="/auth" element={<Auth />} />
+      <Route
+        path="/layout"
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<div>Welcome to the Dashboard!</div>} />
+        <Route path="employees" element={<EmployeesDetails />} />
+        <Route path="hr-policy" element={<HRPolicy />} />
+        <Route path="tasks" element={<Tasks />} />
+        <Route path="task-status" element={<TaskStatus />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/auth" />} />
+    </Routes>
   );
 }
 
