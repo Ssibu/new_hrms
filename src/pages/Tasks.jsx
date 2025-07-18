@@ -12,6 +12,9 @@ function Tasks() {
   const [success, setSuccess] = useState('');
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
+  // Add state for editing
+  const [editModal, setEditModal] = useState(false);
+  const [editTask, setEditTask] = useState(null);
 
   // Fetch all tasks
   const fetchTasks = async () => {
@@ -23,6 +26,7 @@ function Tasks() {
       const data = await res.json();
       setTasks(Array.isArray(data) ? data : data.data || []);
       
+      
     } catch (err) {
       setError(err.message);
     }
@@ -30,8 +34,9 @@ function Tasks() {
   };
 
   useEffect(() => {
+    
     fetchTasks();
-    console.log(user)
+    
   }, []);
 
   // Handle form submission
@@ -43,7 +48,9 @@ function Tasks() {
     
     try {
       // Prepare payload according to schema
+      
       const payload = { title: form.title, description: form.description, createdBy: user.userId};
+
       console.log(payload)
       const res = await fetch(API_URL, {
         method: 'POST',
@@ -60,6 +67,55 @@ function Tasks() {
       setError(err.message);
     }
     setFormLoading(false);
+  };
+
+  // Edit handler
+  const handleEdit = (task) => {
+    setEditTask(task);
+    setEditModal(true);
+  };
+
+  // Update task
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    setFormLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const payload = { title: editTask.title, description: editTask.description };
+      const res = await fetch(`${API_URL}/${editTask._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('Failed to update task');
+      setSuccess('Task updated successfully!');
+      setEditModal(false);
+      setEditTask(null);
+      fetchTasks();
+    } catch (err) {
+      setError(err.message);
+    }
+    setFormLoading(false);
+  };
+
+  // Delete handler
+  const handleDelete = async (taskId) => {
+    if (!window.confirm('Are you sure you want to delete this task?')) return;
+    setError('');
+    setSuccess('');
+    try {
+      const res = await fetch(`${API_URL}/${taskId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to delete task');
+      setSuccess('Task deleted successfully!');
+      fetchTasks();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   if (userLoading) {
@@ -116,6 +172,48 @@ function Tasks() {
           </div>
         </div>
       )}
+      {/* Edit Task Modal */}
+      {editModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded shadow-lg w-full max-w-lg relative">
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl"
+              onClick={() => setEditModal(false)}
+            >
+              &times;
+            </button>
+            <form onSubmit={handleUpdate} className="space-y-4">
+              <h3 className="text-xl font-bold mb-4">Edit Task</h3>
+              <div>
+                <label className="block mb-1">Title <span className="text-red-500">*</span></label>
+                <input
+                  name="title"
+                  value={editTask.title}
+                  onChange={e => setEditTask({ ...editTask, title: e.target.value })}
+                  required
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block mb-1">Description</label>
+                <textarea
+                  name="description"
+                  value={editTask.description}
+                  onChange={e => setEditTask({ ...editTask, description: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer"
+                disabled={formLoading}
+              >
+                {formLoading ? 'Updating...' : 'Update'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
       {/* Task cards section */}
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
@@ -139,6 +237,10 @@ function Tasks() {
               <div className="flex flex-wrap gap-2 mt-2 text-sm">
                 <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded font-medium">Assigned By: {task.assignedBy || '-'}</span>
                 <span className="bg-gray-100 text-gray-500 px-2 py-1 rounded">Created: {task.createdAt ? new Date(task.createdAt).toLocaleString() : '-'}</span>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button className="bg-yellow-500 text-white px-3 py-1 rounded" onClick={() => handleEdit(task)}>Edit</button>
+                <button className="bg-red-600 text-white px-3 py-1 rounded" onClick={() => handleDelete(task._id)}>Delete</button>
               </div>
             </div>
           ))

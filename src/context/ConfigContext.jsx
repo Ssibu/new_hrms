@@ -14,7 +14,10 @@ export const ConfigProvider = ({ children }) => {
     })
       .then(res => res.ok ? res.json() : null)
       .then(data => {
-        if (data && data.user) setUser(data.user);
+        if (data && data.user) {
+          setUser(data.user);
+          console.log(data.user);
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));

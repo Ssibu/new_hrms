@@ -24,9 +24,11 @@ const TaskStatus = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/my?userId=${user.userId}`, { credentials: 'include' });
+      const res = await fetch(`${API_URL}/my`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch tasks');
       const data = await res.json();
+      console.log(data)
+      
       setTasks(Array.isArray(data) ? data : data.data || []);
     } catch (err) {
       setError(err.message);
@@ -37,9 +39,10 @@ const TaskStatus = () => {
   // Fetch all tasks
   const fetchAllTasks = async () => {
     try {
-      const res = await fetch(API_URL, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to fetch all tasks');
-      const data = await res.json();
+      const response = await fetch(API_URL, { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch all tasks');
+      const data = await response.json();
+      
       setAllTasks(Array.isArray(data) ? data : data.data || []);
     } catch (err) {
       // Optionally handle error
@@ -71,13 +74,13 @@ const TaskStatus = () => {
       return;
     }
     try {
-      const res = await fetch(endpoint, {
+      const response = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(body)
       });
-      if (!res.ok) throw new Error('Action failed');
+      if (!response.ok) throw new Error('Action failed');
       // Refresh both lists after action
       fetchTasks();
       fetchAllTasks();

@@ -9,6 +9,7 @@ const Sidebar = () => {
     { to: '/layout/hr-policy', label: 'HR Policy' },
     { to: '/layout/tasks', label: 'Tasks' },
     { to: '/layout/task-status', label: 'Task Status' },
+    { to: '/layout/profile', label: 'Profile' }, // Added Profile link
   ];
 
   return (

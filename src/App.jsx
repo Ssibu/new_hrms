@@ -7,6 +7,7 @@ import EmployeesDetails from './pages/EmployeesDetails';
 import HRPolicy from './pages/HRPolicy';
 import Tasks from './pages/Tasks';
 import TaskStatus from './pages/TaskStatus';
+import Profile from './pages/Profile';
 
 function ProtectedRoute({ children }) {
   const { user } = useConfig();
@@ -30,6 +31,7 @@ function App() {
         <Route path="hr-policy" element={<HRPolicy />} />
         <Route path="tasks" element={<Tasks />} />
         <Route path="task-status" element={<TaskStatus />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
       <Route path="*" element={<Navigate to="/auth" />} />
     </Routes>
