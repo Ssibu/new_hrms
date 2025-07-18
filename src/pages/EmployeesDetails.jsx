@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useConfig } from '../context/ConfigContext';
 
 const API_URL = 'http://localhost:5000/api/employees';
 
@@ -8,6 +9,7 @@ const getAuthHeaders = () => {
 };
 
 const EmployeesDetails = () => {
+  const { user } = useConfig();
   const [employees, setEmployees] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
@@ -117,6 +119,7 @@ const EmployeesDetails = () => {
         <button
           onClick={() => { setIsModalOpen(true); setEditId(null); setFormData({ name: '', email: '', empId: '', number: '', address: '', experience: '', dateOfJoining: '', salary: '' }); }}
           className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-8 rounded-xl transition-colors duration-200 shadow-lg hover:shadow-xl text-lg"
+          disabled={!user || !(user.role === 'Admin' || (user.permissions && user.permissions.includes('employee:create')))}
         >
           + Add Employee
         </button>
@@ -263,8 +266,20 @@ const EmployeesDetails = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{emp.dateOfJoining ? emp.dateOfJoining.substring(0, 10) : ''}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${emp.salary?.toLocaleString()}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm flex gap-2">
-                  <button onClick={() => handleEdit(emp)} className="bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-1 rounded shadow">Edit</button>
-                  <button onClick={() => handleDelete(emp._id || emp.id)} className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded shadow">Delete</button>
+                  <button
+                    onClick={() => handleEdit(emp)}
+                    className="bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-1 rounded shadow"
+                    disabled={!user || !(user.role === 'Admin' || (user.permissions && user.permissions.includes('employee:update')))}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(emp._id || emp.id)}
+                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded shadow"
+                    disabled={!user || !(user.role === 'Admin' || (user.permissions && user.permissions.includes('employee:delete')))}
+                  >
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}

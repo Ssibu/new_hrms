@@ -8,10 +8,23 @@ import HRPolicy from './pages/HRPolicy';
 import Tasks from './pages/Tasks';
 import TaskStatus from './pages/TaskStatus';
 import Profile from './pages/Profile';
+import UserManagement from './pages/UserManagement';
 
 function ProtectedRoute({ children }) {
   const { user } = useConfig();
   return user ? children : <Navigate to="/auth" />;
+}
+
+function PermissionRoute({ permission, children, blockForEmployee }) {
+  const { user } = useConfig();
+  if (!user) return <Navigate to="/auth" />;
+  if (blockForEmployee && user.role === 'Employee') {
+    return <div className="text-red-600 p-8">Access denied.</div>;
+  }
+  if (user.role === 'Admin' || (user.permissions && user.permissions.includes(permission))) {
+    return children;
+  }
+  return <div className="text-red-600 p-8">Access denied.</div>;
 }
 
 function App() {
@@ -27,11 +40,12 @@ function App() {
         }
       >
         <Route index element={<div>Welcome to the Dashboard!</div>} />
-        <Route path="employees" element={<EmployeesDetails />} />
+        <Route path="employees" element={<PermissionRoute permission="employee:read"><EmployeesDetails /></PermissionRoute>} />
         <Route path="hr-policy" element={<HRPolicy />} />
-        <Route path="tasks" element={<Tasks />} />
+        <Route path="tasks" element={<PermissionRoute permission="task:read" blockForEmployee={true}><Tasks /></PermissionRoute>} />
         <Route path="task-status" element={<TaskStatus />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="users" element={<PermissionRoute permission="admin:manage"><UserManagement /></PermissionRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/auth" />} />
     </Routes>

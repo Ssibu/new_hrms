@@ -125,7 +125,8 @@ function Tasks() {
   return (
     <div className="p-8">
       <h2 className="text-2xl font-bold mb-6">Task Management</h2>
-      <button className="bg-blue-600 text-white px-4 py-2 rounded mb-4" onClick={() => setShowModal(true)}>
+      <button className="bg-blue-600 text-white px-4 py-2 rounded mb-4" onClick={() => setShowModal(true)}
+        disabled={!user || !(user.role === 'Admin' || (user.permissions && user.permissions.includes('task:create')))}>
         Create Task
       </button>
       {success && <div className="text-green-600 mb-4">{success}</div>}
@@ -239,8 +240,14 @@ function Tasks() {
                 <span className="bg-gray-100 text-gray-500 px-2 py-1 rounded">Created: {task.createdAt ? new Date(task.createdAt).toLocaleString() : '-'}</span>
               </div>
               <div className="flex gap-2 mt-4">
-                <button className="bg-yellow-500 text-white px-3 py-1 rounded" onClick={() => handleEdit(task)}>Edit</button>
-                <button className="bg-red-600 text-white px-3 py-1 rounded" onClick={() => handleDelete(task._id)}>Delete</button>
+                <button className="bg-yellow-500 text-white px-3 py-1 rounded" onClick={() => handleEdit(task)}
+                  disabled={!user || !(user.role === 'Admin' || (user.permissions && user.permissions.includes('task:update')))}>
+                  Edit
+                </button>
+                <button className="bg-red-600 text-white px-3 py-1 rounded" onClick={() => handleDelete(task._id)}
+                  disabled={!user || !(user.role === 'Admin' || (user.permissions && user.permissions.includes('task:delete')))}>
+                  Delete
+                </button>
               </div>
             </div>
           ))

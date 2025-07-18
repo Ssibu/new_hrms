@@ -16,7 +16,8 @@ export const ConfigProvider = ({ children }) => {
       .then(data => {
         if (data && data.user) {
           setUser(data.user);
-          console.log(data.user);
+          console.log(data.user)
+          
         }
         setLoading(false);
       })
