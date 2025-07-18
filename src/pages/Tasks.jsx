@@ -31,6 +31,7 @@ function Tasks() {
 
   useEffect(() => {
     fetchTasks();
+    console.log(user)
   }, []);
 
   // Handle form submission
@@ -42,7 +43,8 @@ function Tasks() {
     
     try {
       // Prepare payload according to schema
-      const payload = { title: form.title, description: form.description, createdBy: user._id };
+      const payload = { title: form.title, description: form.description, createdBy: user.userId};
+      console.log(payload)
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -122,11 +124,22 @@ function Tasks() {
           <div className="col-span-full text-center text-gray-500">No tasks found.</div>
         ) : (
           tasks.map(task => (
-            <div key={task._id} className="bg-white rounded shadow p-6 border flex flex-col gap-2">
-              <div className="font-bold text-lg mb-1">{task.title}</div>
-              {task.description && <div><span className="font-semibold">Description:</span> {task.description}</div>}
-              <div><span className="font-semibold">Assigned By:</span> {task.assignedBy || '-'}</div>
-              <div><span className="font-semibold">Created At:</span> {task.createdAt ? new Date(task.createdAt).toLocaleString() : '-'}</div>
+            <div key={task._id} className="relative bg-white rounded-lg shadow-lg border-l-4 border-blue-600 p-6 flex flex-col gap-3 transition-transform hover:scale-[1.02] hover:shadow-xl">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="inline-flex items-center justify-center w-10 h-10 bg-blue-100 text-blue-600 rounded-full text-2xl">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-3-3v6m9 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </span>
+                <div>
+                  <div className="font-bold text-xl text-gray-800">{task.title}</div>
+                  {task.description && <div className="text-gray-600 text-sm mt-1">{task.description}</div>}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2 text-sm">
+                <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded font-medium">Assigned By: {task.assignedBy || '-'}</span>
+                <span className="bg-gray-100 text-gray-500 px-2 py-1 rounded">Created: {task.createdAt ? new Date(task.createdAt).toLocaleString() : '-'}</span>
+              </div>
             </div>
           ))
         )}
