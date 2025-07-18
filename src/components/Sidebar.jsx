@@ -20,6 +20,7 @@ const Sidebar = () => {
   // Hide 'Tasks' for Employee role
   const filteredNavItems = navItems.filter(item => {
     if (item.label === 'Tasks' && user && user.role === 'Employee') return false;
+    if (item.label === 'HR Policy' && user && user.role === 'Employee') return false;
     if (!item.perm) return true;
     if (!user) return false;
     if (user.role === 'Admin') return true;

@@ -41,7 +41,7 @@ function App() {
       >
         <Route index element={<div>Welcome to the Dashboard!</div>} />
         <Route path="employees" element={<PermissionRoute permission="employee:read"><EmployeesDetails /></PermissionRoute>} />
-        <Route path="hr-policy" element={<HRPolicy />} />
+        <Route path="hr-policy" element={<PermissionRoute permission={null} blockForEmployee={true}><HRPolicy /></PermissionRoute>} />
         <Route path="tasks" element={<PermissionRoute permission="task:read" blockForEmployee={true}><Tasks /></PermissionRoute>} />
         <Route path="task-status" element={<TaskStatus />} />
         <Route path="profile" element={<Profile />} />
