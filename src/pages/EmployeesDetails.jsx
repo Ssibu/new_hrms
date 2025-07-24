@@ -29,6 +29,10 @@ const EmployeesDetails = () => {
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRole, setFilterRole] = useState('');
+  const [sortBy, setSortBy] = useState('name');
+  const [sortOrder, setSortOrder] = useState('asc');
 
   // Fetch employees from backend
   useEffect(() => {
@@ -116,6 +120,57 @@ const EmployeesDetails = () => {
     }
   };
 
+  // Filter and sort employees
+  const filteredAndSortedEmployees = employees
+    .filter(emp => {
+      const matchesSearch = 
+        emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.empId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.address?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesRole = filterRole === '' || emp.role === filterRole;
+      
+      return matchesSearch && matchesRole;
+    })
+    .sort((a, b) => {
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
+      
+      // Handle different data types
+      if (sortBy === 'salary') {
+        aValue = Number(aValue) || 0;
+        bValue = Number(bValue) || 0;
+      } else if (sortBy === 'dateOfJoining') {
+        aValue = new Date(aValue || 0);
+        bValue = new Date(bValue || 0);
+      } else {
+        aValue = String(aValue || '').toLowerCase();
+        bValue = String(bValue || '').toLowerCase();
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const SortIcon = ({ field }) => {
+    if (sortBy !== field) return <span className="text-gray-400">↕️</span>;
+    return <span className="text-blue-600">{sortOrder === 'asc' ? '↑' : '↓'}</span>;
+  };
+
   return (
     <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl shadow-lg p-8 transition-all duration-200 hover:shadow-2xl">
       <div className="flex justify-between items-center mb-8">
@@ -129,6 +184,74 @@ const EmployeesDetails = () => {
         </button>
       </div>
       {error && <p style={{ color: 'red' }}>{error}</p>}
+      
+      {/* Search and Filter Controls */}
+      <div className="mb-6 bg-white rounded-xl shadow-md p-6 border border-gray-100">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Search Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Search Employees</label>
+            <input
+              type="text"
+              placeholder="Search by name, email, ID, phone, or address..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            />
+          </div>
+          
+          {/* Role Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Role</label>
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            >
+              <option value="">All Roles</option>
+              <option value="hr">HR</option>
+              <option value="manager">Manager</option>
+              <option value="employee">Employee</option>
+            </select>
+          </div>
+          
+          {/* Sort Controls */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            >
+              <option value="name">Name</option>
+              <option value="email">Email</option>
+              <option value="empId">Employee ID</option>
+              <option value="dateOfJoining">Date of Joining</option>
+              <option value="salary">Salary</option>
+              <option value="role">Role</option>
+            </select>
+          </div>
+        </div>
+        
+        {/* Results Summary */}
+        <div className="mt-4 flex justify-between items-center text-sm text-gray-600">
+          <span>
+            Showing {filteredAndSortedEmployees.length} of {employees.length} employees
+          </span>
+          <button
+            onClick={() => {
+              setSearchTerm('');
+              setFilterRole('');
+              setSortBy('name');
+              setSortOrder('asc');
+            }}
+            className="text-blue-600 hover:text-blue-800 font-medium"
+          >
+            Clear Filters
+          </button>
+        </div>
+      </div>
+      
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm">
@@ -246,21 +369,46 @@ const EmployeesDetails = () => {
           <thead className="bg-blue-100 sticky top-0 z-10">
             <tr>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-blue-200 transition-colors" onClick={() => handleSort('name')}>
+                <div className="flex items-center space-x-1">
+                  <span>Name</span>
+                  <SortIcon field="name" />
+                </div>
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-blue-200 transition-colors" onClick={() => handleSort('email')}>
+                <div className="flex items-center space-x-1">
+                  <span>Email</span>
+                  <SortIcon field="email" />
+                </div>
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-blue-200 transition-colors" onClick={() => handleSort('empId')}>
+                <div className="flex items-center space-x-1">
+                  <span>Employee ID</span>
+                  <SortIcon field="empId" />
+                </div>
+              </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date of Joining</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salary</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-blue-200 transition-colors" onClick={() => handleSort('dateOfJoining')}>
+                <div className="flex items-center space-x-1">
+                  <span>Date of Joining</span>
+                  <SortIcon field="dateOfJoining" />
+                </div>
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-blue-200 transition-colors" onClick={() => handleSort('salary')}>
+                <div className="flex items-center space-x-1">
+                  <span>Salary</span>
+                  <SortIcon field="salary" />
+                </div>
+              </th>
               {hasActionPermissions && (
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               )}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
-            {employees.map((emp, idx) => (
+            {filteredAndSortedEmployees.map((emp, idx) => (
               <tr key={emp._id || emp.id} className={idx % 2 === 0 ? 'bg-blue-50 hover:bg-blue-100 transition' : 'hover:bg-blue-50 transition'}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{emp._id || emp.id}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{emp.name}</td>
