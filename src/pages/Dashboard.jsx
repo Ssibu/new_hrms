@@ -1,5 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useConfig } from '../context/ConfigContext';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Bar } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const Dashboard = () => {
   const { user } = useConfig();
@@ -12,8 +31,161 @@ const Dashboard = () => {
     recentEmployees: [],
     recentTasks: []
   });
+  const [tasks, setTasks] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Helper function to get week number from date
+  const getWeekNumber = (date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+    const week1 = new Date(d.getFullYear(), 0, 4);
+    return 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+  };
+
+  // Helper function to format month-year
+  const getMonthYear = (date) => {
+    const d = new Date(date);
+    return `${d.toLocaleString('default', { month: 'short' })} ${d.getFullYear()}`;
+  };
+
+  // Helper function to get employee name by ID
+  const getEmployeeName = (employeeId) => {
+    const employee = employees.find(emp => emp._id === employeeId);
+    return employee ? employee.name : `Employee ${employeeId.slice(-4)}`;
+  };
+
+  // Process weekly task ratings data
+  const getWeeklyRatingsData = () => {
+    const completedTasks = tasks.filter(task => task.status === 'completed' && task.rating);
+    const weeklyData = {};
+
+    completedTasks.forEach(task => {
+      if (task.completedDate && task.rating) {
+        const weekKey = `Week ${getWeekNumber(task.completedDate)} ${new Date(task.completedDate).getFullYear()}`;
+        const employeeName = getEmployeeName(task.assignedTo);
+        
+        if (!weeklyData[weekKey]) {
+          weeklyData[weekKey] = {};
+        }
+        if (!weeklyData[weekKey][employeeName]) {
+          weeklyData[weekKey][employeeName] = [];
+        }
+        weeklyData[weekKey][employeeName].push(task.rating);
+      }
+    });
+
+    // Calculate average ratings for each employee per week
+    const processedData = {};
+    Object.keys(weeklyData).forEach(week => {
+      processedData[week] = {};
+      Object.keys(weeklyData[week]).forEach(employee => {
+        const ratings = weeklyData[week][employee];
+        processedData[week][employee] = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
+      });
+    });
+
+    return processedData;
+  };
+
+  // Process monthly task ratings data
+  const getMonthlyRatingsData = () => {
+    const completedTasks = tasks.filter(task => task.status === 'completed' && task.rating);
+    const monthlyData = {};
+
+    completedTasks.forEach(task => {
+      if (task.completedDate && task.rating) {
+        const monthKey = getMonthYear(task.completedDate);
+        const employeeName = getEmployeeName(task.assignedTo);
+        
+        if (!monthlyData[monthKey]) {
+          monthlyData[monthKey] = {};
+        }
+        if (!monthlyData[monthKey][employeeName]) {
+          monthlyData[monthKey][employeeName] = [];
+        }
+        monthlyData[monthKey][employeeName].push(task.rating);
+      }
+    });
+
+    // Calculate average ratings for each employee per month
+    const processedData = {};
+    Object.keys(monthlyData).forEach(month => {
+      processedData[month] = {};
+      Object.keys(monthlyData[month]).forEach(employee => {
+        const ratings = monthlyData[month][employee];
+        processedData[month][employee] = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
+      });
+    });
+
+    return processedData;
+  };
+
+  // Generate chart data for weekly ratings
+  const getWeeklyChartData = () => {
+    const weeklyData = getWeeklyRatingsData();
+    const weeks = Object.keys(weeklyData).sort();
+    const allEmployees = [...new Set(Object.values(weeklyData).flatMap(week => Object.keys(week)))];
+    
+    const colors = [
+      'rgba(54, 162, 235, 0.8)',
+      'rgba(255, 99, 132, 0.8)',
+      'rgba(75, 192, 192, 0.8)',
+      'rgba(153, 102, 255, 0.8)',
+      'rgba(255, 159, 64, 0.8)',
+      'rgba(199, 199, 199, 0.8)',
+      'rgba(83, 102, 255, 0.8)',
+      'rgba(255, 99, 255, 0.8)'
+    ];
+
+    const datasets = allEmployees.map((employee, index) => ({
+      label: employee,
+      data: weeks.map(week => weeklyData[week][employee] || 0),
+      backgroundColor: colors[index % colors.length],
+      borderColor: colors[index % colors.length].replace('0.8', '1'),
+      borderWidth: 1
+    }));
+
+    return {
+      labels: weeks,
+      datasets
+    };
+  };
+
+  // Generate chart data for monthly ratings
+  const getMonthlyChartData = () => {
+    const monthlyData = getMonthlyRatingsData();
+    const months = Object.keys(monthlyData).sort((a, b) => {
+      return new Date(a + ' 1') - new Date(b + ' 1');
+    });
+    const allEmployees = [...new Set(Object.values(monthlyData).flatMap(month => Object.keys(month)))];
+    
+    const colors = [
+      'rgba(54, 162, 235, 0.8)',
+      'rgba(255, 99, 132, 0.8)',
+      'rgba(75, 192, 192, 0.8)',
+      'rgba(153, 102, 255, 0.8)',
+      'rgba(255, 159, 64, 0.8)',
+      'rgba(199, 199, 199, 0.8)',
+      'rgba(83, 102, 255, 0.8)',
+      'rgba(255, 99, 255, 0.8)'
+    ];
+
+    const datasets = allEmployees.map((employee, index) => ({
+      label: employee,
+      data: months.map(month => monthlyData[month][employee] || 0),
+      backgroundColor: colors[index % colors.length],
+      borderColor: colors[index % colors.length].replace('0.8', '1'),
+      borderWidth: 1
+    }));
+
+    return {
+      labels: months,
+      datasets
+    };
+  };
 
   useEffect(() => {
     fetchDashboardData();
@@ -26,15 +198,17 @@ const Dashboard = () => {
       const employeesRes = await fetch('http://localhost:5000/api/employees', { 
         credentials: 'include' 
       });
-      const employees = employeesRes.ok ? await employeesRes.json() : [];
+      const employeesData = employeesRes.ok ? await employeesRes.json() : [];
+      setEmployees(employeesData);
 
       // Fetch tasks data if user has permission
-      let tasks = [];
+      let tasksData = [];
       if (user && (user.role === 'Admin' || (user.permissions && user.permissions.includes('task:read')))) {
         const tasksRes = await fetch('http://localhost:5000/api/employee-tasks', { 
           credentials: 'include' 
         });
-        tasks = tasksRes.ok ? await tasksRes.json() : [];
+        tasksData = tasksRes.ok ? await tasksRes.json() : [];
+        setTasks(tasksData);
       }
 
       // Fetch users data if user is admin
@@ -47,17 +221,17 @@ const Dashboard = () => {
       }
 
       // Calculate statistics
-      const pendingTasks = tasks.filter(task => task.status === 'pending' || task.status === 'in-progress').length;
-      const completedTasks = tasks.filter(task => task.status === 'completed').length;
+      const pendingTasks = tasksData.filter(task => task.status === 'pending' || task.status === 'in-progress').length;
+      const completedTasks = tasksData.filter(task => task.status === 'completed').length;
 
       setStats({
-        totalEmployees: employees.length,
-        totalTasks: tasks.length,
+        totalEmployees: employeesData.length,
+        totalTasks: tasksData.length,
         pendingTasks,
         completedTasks,
         totalUsers: users.length,
-        recentEmployees: employees.slice(-5).reverse(), // Last 5 employees
-        recentTasks: tasks.slice(-5).reverse() // Last 5 tasks
+        recentEmployees: employeesData.slice(-5).reverse(), // Last 5 employees
+        recentTasks: tasksData.slice(-5).reverse() // Last 5 tasks
       });
     } catch (err) {
       setError('Failed to load dashboard data');
@@ -174,6 +348,111 @@ const Dashboard = () => {
           />
         )}
       </div>
+
+      {/* Task Rating Charts - only show if user has task permissions and there are completed tasks */}
+      {user && (user.role === 'Admin' || (user.permissions && user.permissions.includes('task:read'))) && tasks.filter(task => task.status === 'completed' && task.rating).length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Weekly Task Ratings Chart */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Weekly Task Ratings</h3>
+            <div className="h-80">
+              <Bar 
+                data={getWeeklyChartData()}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    title: {
+                      display: true,
+                      text: 'Average Task Ratings by Week'
+                    },
+                    legend: {
+                      position: 'top',
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: function(context) {
+                          return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}/5`;
+                        }
+                      }
+                    }
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      max: 5,
+                      title: {
+                        display: true,
+                        text: 'Rating (1-5)'
+                      }
+                    },
+                    x: {
+                      title: {
+                        display: true,
+                        text: 'Week'
+                      }
+                    }
+                  },
+                  interaction: {
+                    intersect: false,
+                    mode: 'index'
+                  }
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Monthly Task Ratings Chart */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Monthly Task Ratings</h3>
+            <div className="h-80">
+              <Bar 
+                data={getMonthlyChartData()}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    title: {
+                      display: true,
+                      text: 'Average Task Ratings by Month'
+                    },
+                    legend: {
+                      position: 'top',
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: function(context) {
+                          return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}/5`;
+                        }
+                      }
+                    }
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      max: 5,
+                      title: {
+                        display: true,
+                        text: 'Rating (1-5)'
+                      }
+                    },
+                    x: {
+                      title: {
+                        display: true,
+                        text: 'Month'
+                      }
+                    }
+                  },
+                  interaction: {
+                    intersect: false,
+                    mode: 'index'
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Recent Activities */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
