@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Auth from './pages/Auth';
 import Layout from './components/Layout';
 import { useConfig } from './context/ConfigContext';
+import Dashboard from './pages/Dashboard';
 import EmployeesDetails from './pages/EmployeesDetails';
 import HRPolicy from './pages/HRPolicy';
 import Tasks from './pages/Tasks';
@@ -39,11 +40,11 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<div>Welcome to the Dashboard!</div>} />
+        <Route index element={<Dashboard />} />
         <Route path="employees" element={<PermissionRoute permission="employee:read"><EmployeesDetails /></PermissionRoute>} />
         <Route path="hr-policy" element={<PermissionRoute permission={null} blockForEmployee={true}><HRPolicy /></PermissionRoute>} />
         <Route path="tasks" element={<PermissionRoute permission="task:read" blockForEmployee={true}><Tasks /></PermissionRoute>} />
-        <Route path="task-status" element={<TaskStatus />} />
+        <Route path="task-status" element={<PermissionRoute permission="task:read"><TaskStatus /></PermissionRoute>} />
         <Route path="profile" element={<Profile />} />
         <Route path="users" element={<PermissionRoute permission="admin:manage"><UserManagement /></PermissionRoute>} />
       </Route>

@@ -8,22 +8,31 @@ const Sidebar = () => {
   const navItems = [
     { to: '/layout', label: 'Dashboard' },
     { to: '/layout/employees', label: 'Employees', perm: 'employee:read' },
-    { to: '/layout/hr-policy', label: 'HR Policy', perm: null },
-    { to: '/layout/tasks', label: 'Tasks', perm: 'task:read' },
-    { to: '/layout/task-status', label: 'Task Status', perm: null },
+    { to: '/layout/hr-policy', label: 'HR Policy', perm: null, blockForEmployee: true },
+    { to: '/layout/tasks', label: 'Tasks', perm: 'task:read', blockForEmployee: true },
+    { to: '/layout/task-status', label: 'Task Status', perm: 'task:read' },
     { to: '/layout/profile', label: 'Profile', perm: null },
   ];
   // Only show User Management for admins or users with admin:manage permission
   if (user && (user.role === 'Admin' || (user.permissions && user.permissions.includes('admin:manage')))) {
     navItems.push({ to: '/layout/users', label: 'User Management', perm: 'admin:manage' });
   }
-  // Hide 'Tasks' for Employee role
+  
+  // Filter nav items based on permissions
   const filteredNavItems = navItems.filter(item => {
-    if (item.label === 'Tasks' && user && user.role === 'Employee') return false;
-    if (item.label === 'HR Policy' && user && user.role === 'Employee') return false;
-    if (!item.perm) return true;
+    // Don't show if user is not logged in
     if (!user) return false;
+    
+    // Admin can see everything
     if (user.role === 'Admin') return true;
+    
+    // Hide items marked as blockForEmployee from Employee role users
+    if (item.blockForEmployee && user.role === 'Employee') return false;
+    
+    // For items without permission requirements, show them (unless blocked above)
+    if (!item.perm) return true;
+    
+    // For items with permission requirements, check if user has the required permission
     return user.permissions && user.permissions.includes(item.perm);
   });
 

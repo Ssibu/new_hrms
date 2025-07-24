@@ -11,6 +11,10 @@ const getAuthHeaders = () => {
 const EmployeesDetails = () => {
   const { user } = useConfig();
   const [employees, setEmployees] = useState([]);
+  
+  // Check if user has any action permissions
+  const hasActionPermissions = user && (user.role === 'Admin' || 
+    (user.permissions && (user.permissions.includes('employee:update') || user.permissions.includes('employee:delete'))));
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -250,7 +254,9 @@ const EmployeesDetails = () => {
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date of Joining</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salary</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              {hasActionPermissions && (
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              )}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
@@ -265,22 +271,26 @@ const EmployeesDetails = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{emp.experience}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{emp.dateOfJoining ? emp.dateOfJoining.substring(0, 10) : ''}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${emp.salary?.toLocaleString()}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm flex gap-2">
-                  <button
-                    onClick={() => handleEdit(emp)}
-                    className="bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-1 rounded shadow"
-                    disabled={!user || !(user.role === 'Admin' || (user.permissions && user.permissions.includes('employee:update')))}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(emp._id || emp.id)}
-                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded shadow"
-                    disabled={!user || !(user.role === 'Admin' || (user.permissions && user.permissions.includes('employee:delete')))}
-                  >
-                    Delete
-                  </button>
-                </td>
+                {hasActionPermissions && (
+                  <td className="px-6 py-4 whitespace-nowrap text-sm flex gap-2">
+                    {user && (user.role === 'Admin' || (user.permissions && user.permissions.includes('employee:update'))) && (
+                      <button
+                        onClick={() => handleEdit(emp)}
+                        className="bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-1 rounded shadow"
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {user && (user.role === 'Admin' || (user.permissions && user.permissions.includes('employee:delete'))) && (
+                      <button
+                        onClick={() => handleDelete(emp._id || emp.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded shadow"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
