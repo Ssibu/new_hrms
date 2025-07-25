@@ -35,6 +35,8 @@ const Dashboard = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedEmployee, setSelectedEmployee] = useState('all');
+  const [filteredTasks, setFilteredTasks] = useState([]);
 
   // Helper function to get week number from date
   const getWeekNumber = (date) => {
@@ -53,18 +55,24 @@ const Dashboard = () => {
 
   // Helper function to get employee name by ID
   const getEmployeeName = (employeeId) => {
-    const employee = employees.find(emp => emp._id === employeeId);
-    return employee ? employee.name : `Employee ${employeeId.slice(-4)}`;
+    if (!employeeId) return 'Unknown Employee';
+    console.log("hey there....",employeeId)
+    console.log("hi employee....",employeeId)
+    const employee = employees.find(emp => emp._id === employeeId._id);
+    
+    return employee ? employee.name : `Employee ${employeeId._id.slice(-4)}`;
   };
 
   // Process weekly task ratings data
   const getWeeklyRatingsData = () => {
-    const completedTasks = tasks.filter(task => task.status === 'completed' && task.rating);
+    const tasksToUse = user?.role === 'Admin' && selectedEmployee !== 'all' ? filteredTasks : tasks;
+    const completedTasks = tasksToUse.filter(task => task.status === 'completed' && task.rating);
+    console.log('Completed tasks with ratings:', completedTasks);
     const weeklyData = {};
 
     completedTasks.forEach(task => {
-      if (task.completedDate && task.rating) {
-        const weekKey = `Week ${getWeekNumber(task.completedDate)} ${new Date(task.completedDate).getFullYear()}`;
+      if (task.completedAt && task.rating) {
+        const weekKey = `Week ${getWeekNumber(task.completedAt)} ${new Date(task.completedAt).getFullYear()}`;
         const employeeName = getEmployeeName(task.assignedTo);
         
         if (!weeklyData[weekKey]) {
@@ -73,9 +81,12 @@ const Dashboard = () => {
         if (!weeklyData[weekKey][employeeName]) {
           weeklyData[weekKey][employeeName] = [];
         }
-        weeklyData[weekKey][employeeName].push(task.rating);
+        weeklyData[weekKey][employeeName].push(parseInt(task.rating));
       }
+      console.log(completedTasks)
     });
+
+    console.log('Weekly data before processing:', weeklyData);
 
     // Calculate average ratings for each employee per week
     const processedData = {};
@@ -87,17 +98,20 @@ const Dashboard = () => {
       });
     });
 
+    console.log('Processed weekly data:', processedData);
     return processedData;
   };
 
   // Process monthly task ratings data
   const getMonthlyRatingsData = () => {
-    const completedTasks = tasks.filter(task => task.status === 'completed' && task.rating);
+    const tasksToUse = user?.role === 'Admin' && selectedEmployee !== 'all' ? filteredTasks : tasks;
+    const completedTasks = tasksToUse.filter(task => task.status === 'completed' && task.rating);
+    console.log('Monthly completed tasks with ratings:', completedTasks);
     const monthlyData = {};
 
     completedTasks.forEach(task => {
-      if (task.completedDate && task.rating) {
-        const monthKey = getMonthYear(task.completedDate);
+      if (task.completedAt && task.rating) {
+        const monthKey = getMonthYear(task.completedAt);
         const employeeName = getEmployeeName(task.assignedTo);
         
         if (!monthlyData[monthKey]) {
@@ -106,9 +120,11 @@ const Dashboard = () => {
         if (!monthlyData[monthKey][employeeName]) {
           monthlyData[monthKey][employeeName] = [];
         }
-        monthlyData[monthKey][employeeName].push(task.rating);
+        monthlyData[monthKey][employeeName].push(parseInt(task.rating));
       }
     });
+
+    console.log('Monthly data before processing:', monthlyData);
 
     // Calculate average ratings for each employee per month
     const processedData = {};
@@ -120,76 +136,167 @@ const Dashboard = () => {
       });
     });
 
+    console.log('Processed monthly data:', processedData);
     return processedData;
   };
 
   // Generate chart data for weekly ratings
   const getWeeklyChartData = () => {
-    const weeklyData = getWeeklyRatingsData();
-    const weeks = Object.keys(weeklyData).sort();
-    const allEmployees = [...new Set(Object.values(weeklyData).flatMap(week => Object.keys(week)))];
-    
-    const colors = [
-      'rgba(54, 162, 235, 0.8)',
-      'rgba(255, 99, 132, 0.8)',
-      'rgba(75, 192, 192, 0.8)',
-      'rgba(153, 102, 255, 0.8)',
-      'rgba(255, 159, 64, 0.8)',
-      'rgba(199, 199, 199, 0.8)',
-      'rgba(83, 102, 255, 0.8)',
-      'rgba(255, 99, 255, 0.8)'
-    ];
+    try {
+      const weeklyData = getWeeklyRatingsData();
+      const weeks = Object.keys(weeklyData).sort();
+      const allEmployees = [...new Set(Object.values(weeklyData).flatMap(week => Object.keys(week)))];
+      
+      console.log('Weekly chart - weeks:', weeks);
+      console.log('Weekly chart - employees:', allEmployees);
+      
+      // Return empty chart data if no data available
+      if (weeks.length === 0 || allEmployees.length === 0) {
+        return {
+          labels: [],
+          datasets: []
+        };
+      }
+      
+      const colors = [
+        'rgba(54, 162, 235, 0.8)',
+        'rgba(255, 99, 132, 0.8)',
+        'rgba(75, 192, 192, 0.8)',
+        'rgba(153, 102, 255, 0.8)',
+        'rgba(255, 159, 64, 0.8)',
+        'rgba(199, 199, 199, 0.8)',
+        'rgba(83, 102, 255, 0.8)',
+        'rgba(255, 99, 255, 0.8)'
+      ];
 
-    const datasets = allEmployees.map((employee, index) => ({
-      label: employee,
-      data: weeks.map(week => weeklyData[week][employee] || 0),
-      backgroundColor: colors[index % colors.length],
-      borderColor: colors[index % colors.length].replace('0.8', '1'),
-      borderWidth: 1
-    }));
+      const datasets = allEmployees.map((employee, index) => {
+        const data = weeks.map(week => weeklyData[week]?.[employee] || 0);
+        console.log(`Weekly data for ${employee}:`, data);
+        return {
+          label: employee,
+          data: data,
+          backgroundColor: colors[index % colors.length],
+          borderColor: colors[index % colors.length].replace('0.8', '1'),
+          borderWidth: 1
+        };
+      });
 
-    return {
-      labels: weeks,
-      datasets
-    };
+      const chartData = {
+        labels: weeks,
+        datasets
+      };
+      
+      console.log('Final weekly chart data:', chartData);
+      return chartData;
+    } catch (error) {
+      console.error('Error generating weekly chart data:', error);
+      return {
+        labels: [],
+        datasets: []
+      };
+    }
   };
 
   // Generate chart data for monthly ratings
   const getMonthlyChartData = () => {
-    const monthlyData = getMonthlyRatingsData();
-    const months = Object.keys(monthlyData).sort((a, b) => {
-      return new Date(a + ' 1') - new Date(b + ' 1');
-    });
-    const allEmployees = [...new Set(Object.values(monthlyData).flatMap(month => Object.keys(month)))];
-    
-    const colors = [
-      'rgba(54, 162, 235, 0.8)',
-      'rgba(255, 99, 132, 0.8)',
-      'rgba(75, 192, 192, 0.8)',
-      'rgba(153, 102, 255, 0.8)',
-      'rgba(255, 159, 64, 0.8)',
-      'rgba(199, 199, 199, 0.8)',
-      'rgba(83, 102, 255, 0.8)',
-      'rgba(255, 99, 255, 0.8)'
-    ];
+    try {
+      const monthlyData = getMonthlyRatingsData();
+      const months = Object.keys(monthlyData).sort((a, b) => {
+        return new Date(a + ' 1') - new Date(b + ' 1');
+      });
+      const allEmployees = [...new Set(Object.values(monthlyData).flatMap(month => Object.keys(month)))];
+      
+      console.log('Monthly chart - months:', months);
+      console.log('Monthly chart - employees:', allEmployees);
+      
+      // Return empty chart data if no data available
+      if (months.length === 0 || allEmployees.length === 0) {
+        return {
+          labels: [],
+          datasets: []
+        };
+      }
+      
+      const colors = [
+        'rgba(54, 162, 235, 0.8)',
+        'rgba(255, 99, 132, 0.8)',
+        'rgba(75, 192, 192, 0.8)',
+        'rgba(153, 102, 255, 0.8)',
+        'rgba(255, 159, 64, 0.8)',
+        'rgba(199, 199, 199, 0.8)',
+        'rgba(83, 102, 255, 0.8)',
+        'rgba(255, 99, 255, 0.8)'
+      ];
 
-    const datasets = allEmployees.map((employee, index) => ({
-      label: employee,
-      data: months.map(month => monthlyData[month][employee] || 0),
-      backgroundColor: colors[index % colors.length],
-      borderColor: colors[index % colors.length].replace('0.8', '1'),
-      borderWidth: 1
-    }));
+      const datasets = allEmployees.map((employee, index) => {
+        const data = months.map(month => monthlyData[month]?.[employee] || 0);
+        console.log(`Monthly data for ${employee}:`, data);
+        return {
+          label: employee,
+          data: data,
+          backgroundColor: colors[index % colors.length],
+          borderColor: colors[index % colors.length].replace('0.8', '1'),
+          borderWidth: 1
+        };
+      });
 
-    return {
-      labels: months,
-      datasets
-    };
+      const chartData = {
+        labels: months,
+        datasets
+      };
+      
+      console.log('Final monthly chart data:', chartData);
+      return chartData;
+    } catch (error) {
+      console.error('Error generating monthly chart data:', error);
+      return {
+        labels: [],
+        datasets: []
+      };
+    }
+  };
+
+  // Fetch tasks for a specific employee (admin only)
+  const fetchTasksByEmployee = async (employeeId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/employee-tasks/employee/${employeeId}`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setFilteredTasks(data);
+        console.log(filteredTasks)
+      } else {
+        setFilteredTasks([]);
+      }
+    } catch (err) {
+      console.error('Error fetching tasks by employee:', err);
+      setFilteredTasks([]);
+    }
+  };
+
+  // Handle employee selection change
+  const handleEmployeeSelection = (employeeId) => {
+    setSelectedEmployee(employeeId);
+    if (employeeId === 'all') {
+      setFilteredTasks(tasks);
+    } else {
+      fetchTasksByEmployee(employeeId);
+    }
   };
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  // Update filtered tasks when tasks or selectedEmployee changes
+  useEffect(() => {
+    if (selectedEmployee === 'all') {
+      setFilteredTasks(tasks);
+    } else if (selectedEmployee !== 'all' && selectedEmployee) {
+      fetchTasksByEmployee(selectedEmployee);
+    }
+  }, [tasks, selectedEmployee]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -209,6 +316,7 @@ const Dashboard = () => {
         });
         tasksData = tasksRes.ok ? await tasksRes.json() : [];
         setTasks(tasksData);
+        console.log('Tasks data:', tasksData);
       }
 
       // Fetch users data if user is admin
@@ -223,6 +331,11 @@ const Dashboard = () => {
       // Calculate statistics
       const pendingTasks = tasksData.filter(task => task.status === 'pending' || task.status === 'in-progress').length;
       const completedTasks = tasksData.filter(task => task.status === 'completed').length;
+      
+      // Debug logging
+      console.log('All tasks data:', tasksData);
+      console.log('Completed tasks:', tasksData.filter(task => task.status === 'completed'));
+      console.log('Completed tasks with ratings:', tasksData.filter(task => task.status === 'completed' && task.rating));
 
       setStats({
         totalEmployees: employeesData.length,
@@ -351,7 +464,40 @@ const Dashboard = () => {
 
       {/* Task Rating Charts - only show if user has task permissions and there are completed tasks */}
       {user && (user.role === 'Admin' || (user.permissions && user.permissions.includes('task:read'))) && tasks.filter(task => task.status === 'completed' && task.rating).length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-6">
+          {/* Employee Filter (Admin Only) */}
+          {user?.role === 'Admin' && (
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className="flex items-center gap-4">
+                <label htmlFor="employee-filter" className="text-sm font-medium text-gray-700">
+                  Filter by Employee:
+                </label>
+                <select
+                  id="employee-filter"
+                  value={selectedEmployee}
+                  onChange={(e) => handleEmployeeSelection(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                >
+                  <option value="all">All Employees</option>
+                  {employees.map((employee) => (
+                    <option key={employee._id} value={employee._id}>
+                      {employee.name} ({employee.empId})
+                    </option>
+                  ))}
+                </select>
+                {selectedEmployee !== 'all' && (
+                  <button
+                    onClick={() => handleEmployeeSelection('all')}
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  >
+                    Clear Filter
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Weekly Task Ratings Chart */}
           <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Weekly Task Ratings</h3>
@@ -451,6 +597,7 @@ const Dashboard = () => {
               />
             </div>
           </div>
+        </div>
         </div>
       )}
 
