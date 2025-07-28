@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useConfig } from '../context/ConfigContext';
+import PermissionDebug from '../components/PermissionDebug';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -257,6 +258,9 @@ const Dashboard = () => {
         <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name || 'User'}! 👋</h1>
         <p className="text-blue-100 text-lg">Here's what's happening in your organization today.</p>
       </div>
+
+      {/* Permission Debug Component */}
+      <PermissionDebug />
 
       {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">{error}</div>}
 

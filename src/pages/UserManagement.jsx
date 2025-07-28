@@ -6,6 +6,7 @@ const API_URL = 'http://localhost:5000/api/users';
 const PERMISSIONS = [
   'employee:read', 'employee:create', 'employee:update', 'employee:delete',
   'task:read', 'task:create', 'task:update', 'task:delete',
+  'leave:read', 'leave:create', 'leave:update', 'leave:delete',
   'admin:manage'
 ];
 const ROLES = ['Admin', 'HR', 'Employee'];
@@ -307,19 +308,82 @@ const UserManagement = () => {
               </div>
               <div>
                 <label className="block mb-2 font-semibold text-gray-700">Permissions</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {PERMISSIONS.map(perm => (
-                    <label key={perm} className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-50 transition cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name={`perm:${perm}`}
-                        checked={editForm.permissions.includes(perm)}
-                        onChange={handleEditChange}
-                        className="form-checkbox h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 transition"
-                      />
-                      <span className="text-sm font-medium text-gray-700 select-none">{perm.replace(':', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
-                    </label>
-                  ))}
+                <div className="space-y-4">
+                  {/* Employee Permissions */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-600 mb-2 border-b border-gray-200 pb-1">Employee Management</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {PERMISSIONS.filter(perm => perm.startsWith('employee:')).map(perm => (
+                        <label key={perm} className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-50 transition cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name={`perm:${perm}`}
+                            checked={editForm.permissions.includes(perm)}
+                            onChange={handleEditChange}
+                            className="form-checkbox h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 transition"
+                          />
+                          <span className="text-sm font-medium text-gray-700 select-none">{perm.replace('employee:', '').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Task Permissions */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-600 mb-2 border-b border-gray-200 pb-1">Task Management</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {PERMISSIONS.filter(perm => perm.startsWith('task:')).map(perm => (
+                        <label key={perm} className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-50 transition cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name={`perm:${perm}`}
+                            checked={editForm.permissions.includes(perm)}
+                            onChange={handleEditChange}
+                            className="form-checkbox h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 transition"
+                          />
+                          <span className="text-sm font-medium text-gray-700 select-none">{perm.replace('task:', '').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Leave Permissions */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-600 mb-2 border-b border-gray-200 pb-1">Leave Management</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {PERMISSIONS.filter(perm => perm.startsWith('leave:')).map(perm => (
+                        <label key={perm} className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-50 transition cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name={`perm:${perm}`}
+                            checked={editForm.permissions.includes(perm)}
+                            onChange={handleEditChange}
+                            className="form-checkbox h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 transition"
+                          />
+                          <span className="text-sm font-medium text-gray-700 select-none">{perm.replace('leave:', '').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Admin Permissions */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-600 mb-2 border-b border-gray-200 pb-1">Administration</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {PERMISSIONS.filter(perm => perm.startsWith('admin:')).map(perm => (
+                        <label key={perm} className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-50 transition cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name={`perm:${perm}`}
+                            checked={editForm.permissions.includes(perm)}
+                            onChange={handleEditChange}
+                            className="form-checkbox h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 transition"
+                          />
+                          <span className="text-sm font-medium text-gray-700 select-none">{perm.replace('admin:', '').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end">
