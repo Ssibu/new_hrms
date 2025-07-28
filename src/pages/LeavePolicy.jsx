@@ -3,9 +3,26 @@ import { useConfig } from '../context/ConfigContext';
 import {
   PlusIcon,
   PencilIcon,
-  TrashIcon,
-  EyeIcon
+  TrashIcon
 } from '@heroicons/react/24/outline';
+
+const Modal = ({ open, onClose, children }) => {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 w-screen min-h-screen z-50 flex items-center justify-center bg-black bg-opacity-40">
+      <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg relative animate-fadeIn">
+        <button
+          className="absolute top-3 right-3 text-gray-400 hover:text-blue-600 text-2xl font-bold focus:outline-none"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          &times;
+        </button>
+        {children}
+      </div>
+    </div>
+  );
+};
 
 const LeavePolicy = () => {
   const { backendUrl } = useConfig();
@@ -120,7 +137,7 @@ const LeavePolicy = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Leave Policies</h1>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => { setShowForm(true); setEditingPolicy(null); }}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"
         >
           <PlusIcon className="h-5 w-5" />
@@ -136,74 +153,74 @@ const LeavePolicy = () => {
         </div>
       )}
 
-      {showForm && (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-lg font-semibold mb-4">
-            {editingPolicy ? 'Edit Leave Policy' : 'Add New Leave Policy'}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Leave Type
-              </label>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Select Leave Type</option>
-                <option value="CL">Casual Leave (CL)</option>
-                <option value="EL">Earned Leave (EL)</option>
-                <option value="SL">Sick Leave (SL)</option>
-              </select>
-            </div>
+      {/* Add/Edit Policy Modal */}
+      <Modal open={showForm} onClose={resetForm}>
+        <h2 className="text-lg font-semibold mb-4">
+          {editingPolicy ? 'Edit Leave Policy' : 'Add New Leave Policy'}
+        </h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Leave Type
+            </label>
+            <select
+              value={formData.type}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              required
+              disabled={!!editingPolicy}
+            >
+              <option value="">Select Leave Type</option>
+              <option value="CL">Casual Leave (CL)</option>
+              <option value="EL">Earned Leave (EL)</option>
+              <option value="SL">Sick Leave (SL)</option>
+            </select>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                rows="3"
-                placeholder="Enter policy description..."
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              rows="3"
+              placeholder="Enter policy description..."
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Total Days Per Year
-              </label>
-              <input
-                type="number"
-                value={formData.totalDaysPerYear}
-                onChange={(e) => setFormData({ ...formData, totalDaysPerYear: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                min="0"
-                required
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Total Days Per Year
+            </label>
+            <input
+              type="number"
+              value={formData.totalDaysPerYear}
+              onChange={(e) => setFormData({ ...formData, totalDaysPerYear: e.target.value })}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              min="0"
+              required
+            />
+          </div>
 
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-              >
-                {editingPolicy ? 'Update Policy' : 'Create Policy'}
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={resetForm}
+              className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+            >
+              {editingPolicy ? 'Update Policy' : 'Create Policy'}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">

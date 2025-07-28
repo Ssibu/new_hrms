@@ -2,11 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { useConfig } from '../context/ConfigContext';
 import {
   CalendarIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  XCircleIcon,
   EyeIcon
 } from '@heroicons/react/24/outline';
+
+const Modal = ({ open, onClose, children }) => {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 w-screen min-h-screen z-50 flex items-center justify-center bg-black bg-opacity-40">
+      <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg relative animate-fadeIn">
+        <button
+          className="absolute top-3 right-3 text-gray-400 hover:text-blue-600 text-2xl font-bold focus:outline-none"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          &times;
+        </button>
+        {children}
+      </div>
+    </div>
+  );
+};
 
 const LeaveApplication = () => {
   const { backendUrl, user } = useConfig();
@@ -160,102 +175,97 @@ const LeaveApplication = () => {
         </div>
       </div>
 
-      {/* Leave Application Form */}
-      {showForm && (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-lg font-semibold mb-4">Apply for Leave</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Leave Type
-                </label>
-                <select
-                  value={formData.leaveType}
-                  onChange={(e) => setFormData({ ...formData, leaveType: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  required
-                >
-                  <option value="">Select Leave Type</option>
-                  {leaveBalance.map((balance) => (
-                    <option key={balance.leaveType} value={balance.leaveType}>
-                      {getLeaveTypeName(balance.leaveType)} (Available: {balance.total - balance.used})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  From Date
-                </label>
-                <input
-                  type="date"
-                  value={formData.fromDate}
-                  onChange={(e) => setFormData({ ...formData, fromDate: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  min={new Date().toISOString().split('T')[0]}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  To Date
-                </label>
-                <input
-                  type="date"
-                  value={formData.toDate}
-                  onChange={(e) => setFormData({ ...formData, toDate: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  min={formData.fromDate || new Date().toISOString().split('T')[0]}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Number of Days
-                </label>
-                <input
-                  type="text"
-                  value={formData.fromDate && formData.toDate ? calculateDays(formData.fromDate, formData.toDate) : ''}
-                  className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
-                  readOnly
-                />
-              </div>
+      {/* Leave Application Modal */}
+      <Modal open={showForm} onClose={() => setShowForm(false)}>
+        <h2 className="text-lg font-semibold mb-4">Apply for Leave</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Leave Type
+              </label>
+              <select
+                value={formData.leaveType}
+                onChange={(e) => setFormData({ ...formData, leaveType: e.target.value })}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="">Select Leave Type</option>
+                {leaveBalance.map((balance) => (
+                  <option key={balance.leaveType} value={balance.leaveType}>
+                    {getLeaveTypeName(balance.leaveType)} (Available: {balance.total - balance.used})
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Reason
+                From Date
               </label>
-              <textarea
-                value={formData.reason}
-                onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+              <input
+                type="date"
+                value={formData.fromDate}
+                onChange={(e) => setFormData({ ...formData, fromDate: e.target.value })}
                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                rows="4"
-                placeholder="Please provide a detailed reason for your leave request..."
+                min={new Date().toISOString().split('T')[0]}
                 required
               />
             </div>
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-              >
-                Submit Request
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  setFormData({ leaveType: '', fromDate: '', toDate: '', reason: '' });
-                }}
-                className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
-              >
-                Cancel
-              </button>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                To Date
+              </label>
+              <input
+                type="date"
+                value={formData.toDate}
+                onChange={(e) => setFormData({ ...formData, toDate: e.target.value })}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                min={formData.fromDate || new Date().toISOString().split('T')[0]}
+                required
+              />
             </div>
-          </form>
-        </div>
-      )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Number of Days
+              </label>
+              <input
+                type="text"
+                value={formData.fromDate && formData.toDate ? calculateDays(formData.fromDate, formData.toDate) : ''}
+                className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
+                readOnly
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Reason
+            </label>
+            <textarea
+              value={formData.reason}
+              onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              rows="4"
+              placeholder="Please provide a detailed reason for your leave request..."
+              required
+            />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+            >
+              Submit Request
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* My Leave Requests */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
