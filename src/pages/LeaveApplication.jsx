@@ -27,6 +27,7 @@ const LeaveApplication = () => {
   const { backendUrl, user } = useConfig();
   const [leaveBalance, setLeaveBalance] = useState([]);
   const [myRequests, setMyRequests] = useState([]);
+  const [policies, setPolicies] = useState([]); // <-- NEW
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     leaveType: '',
@@ -40,7 +41,22 @@ const LeaveApplication = () => {
 
   useEffect(() => {
     fetchData();
+    fetchPolicies(); // <-- NEW
   }, []);
+
+  const fetchPolicies = async () => {
+    try {
+      const response = await fetch(`${backendUrl}/api/leave-policies`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setPolicies(data);
+        console.log('Leave Policies:', data);
+        
+      }
+    } catch (error) {
+      // Optionally handle error
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -151,27 +167,34 @@ const LeaveApplication = () => {
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">My Leave Balance</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {leaveBalance.map((balance) => (
-            <div key={balance._id} className="bg-gray-50 p-4 rounded-lg">
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium text-gray-900">{getLeaveTypeName(balance.leaveType)}</span>
-                <span className="text-sm text-gray-500">{balance.year}</span>
+          {policies.length === 0 && (
+            <div className="col-span-3 text-center text-gray-500">No leave policies found.</div>
+          )}
+          {policies.map((policy) => {
+            const balance = leaveBalance.find(b => b.leaveType === policy.type);
+            if (!balance) return null;
+            return (
+              <div key={balance._id} className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium text-gray-900">{getLeaveTypeName(balance.leaveType)}</span>
+                  <span className="text-sm text-gray-500">{balance.year}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-2xl font-bold text-blue-600">{balance.total - balance.used}</span>
+                  <span className="text-sm text-gray-500">available</span>
+                </div>
+                <div className="mt-2 text-sm text-gray-600">
+                  Used: {balance.used} / Total: {balance.total}
+                </div>
+                <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full" 
+                    style={{ width: `${(balance.used / balance.total) * 100}%` }}
+                  ></div>
+                </div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-2xl font-bold text-blue-600">{balance.total - balance.used}</span>
-                <span className="text-sm text-gray-500">available</span>
-              </div>
-              <div className="mt-2 text-sm text-gray-600">
-                Used: {balance.used} / Total: {balance.total}
-              </div>
-              <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full" 
-                  style={{ width: `${(balance.used / balance.total) * 100}%` }}
-                ></div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -191,11 +214,15 @@ const LeaveApplication = () => {
                 required
               >
                 <option value="">Select Leave Type</option>
-                {leaveBalance.map((balance) => (
-                  <option key={balance.leaveType} value={balance.leaveType}>
-                    {getLeaveTypeName(balance.leaveType)} (Available: {balance.total - balance.used})
-                  </option>
-                ))}
+                {policies.map((policy) => {
+                  const balance = leaveBalance.find(b => b.leaveType === policy.type);
+                  if (!balance) return null;
+                  return (
+                    <option key={policy.type} value={policy.type}>
+                      {getLeaveTypeName(policy.type)} (Available: {balance.total - balance.used})
+                    </option>
+                  );
+                })}
               </select>
             </div>
             <div>
