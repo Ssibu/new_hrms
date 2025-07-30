@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Blue background -->
+  <rect width="32" height="32" rx="6" fill="#2563eb"/>
+  
+  <!-- Stylized profile/document shape -->
+  <path d="M10,6 C8,6 6,8 6,10 L6,22 C6,24 8,26 10,26 L22,26 C24,26 26,24 26,22 L26,16" 
+        fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Circle head for the profile -->
+  <circle cx="14" cy="12.5" r="3" fill="none" stroke="#ffffff" stroke-width="2.5"/>
+  
+  <!-- Body for the profile -->
+  <path d="M10,20 C10,17 12,16 14,16 C16,16 18,17 18,20" 
+        fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Green approval checkmark -->
+  <path d="M20,7 L23,10 L29,4" stroke="#4ade80" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
