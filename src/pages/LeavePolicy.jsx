@@ -32,12 +32,13 @@ const LeavePolicy = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState(null);
   
-  // --- MODIFIED: Added 'category' to the initial state ---
+  // --- MODIFIED: Added 'monthlyAllowance' to the initial state ---
   const [formData, setFormData] = useState({
     type: '',
     description: '',
     category: 'Paid', // Default to 'Paid' for new policies
-    totalDaysPerYear: ''
+    totalDaysPerYear: '',
+    monthlyAllowance: '' // New state for monthly allowance
   });
   const [message, setMessage] = useState('');
 
@@ -65,11 +66,17 @@ const LeavePolicy = () => {
     e.preventDefault();
     setMessage('');
 
-    // --- MODIFIED: Prepare data based on category ---
+    // --- MODIFIED: Prepare data based on category and type ---
     let submissionData = { ...formData };
+    
+    // 1. Handle Unpaid category
     if (submissionData.category === 'Unpaid') {
-      // Ensure totalDaysPerYear is not sent for Unpaid policies
       delete submissionData.totalDaysPerYear;
+    }
+
+    // 2. Handle monthly allowance based on type
+    if (!['CL', 'SL', 'EL'].includes(submissionData.type)) {
+      delete submissionData.monthlyAllowance;
     }
 
     try {
@@ -83,14 +90,14 @@ const LeavePolicy = () => {
         method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(submissionData) // Send the modified data
+        body: JSON.stringify(submissionData) // Send the correctly structured data
       });
 
       const data = await response.json();
       
       if (response.ok) {
         setMessage(editingPolicy ? 'Policy updated successfully!' : 'Policy created successfully!');
-        resetForm(); // Use resetForm to close modal and clear state
+        resetForm();
         fetchPolicies();
       } else {
         setMessage(data.error || 'Something went wrong');
@@ -100,14 +107,15 @@ const LeavePolicy = () => {
     }
   };
 
-  // --- MODIFIED: Populate form with all necessary fields, including category ---
+  // --- MODIFIED: Populate form with all fields, including monthlyAllowance ---
   const handleEdit = (policy) => {
     setEditingPolicy(policy);
     setFormData({
       type: policy.type,
       description: policy.description || '',
-      category: policy.category, // Set the category from the policy
-      totalDaysPerYear: policy.totalDaysPerYear?.toString() || '' // Handle cases where it might be null/undefined
+      category: policy.category,
+      totalDaysPerYear: policy.totalDaysPerYear?.toString() || '',
+      monthlyAllowance: policy.monthlyAllowance?.toString() || '' // Populate allowance
     });
     setShowForm(true);
   };
@@ -133,14 +141,13 @@ const LeavePolicy = () => {
     }
   };
 
-  // --- MODIFIED: Reset form now includes the category field ---
+  // --- MODIFIED: Reset form now includes monthlyAllowance ---
   const resetForm = () => {
-    setFormData({ type: '', description: '', category: 'Paid', totalDaysPerYear: '' });
+    setFormData({ type: '', description: '', category: 'Paid', totalDaysPerYear: '', monthlyAllowance: '' });
     setEditingPolicy(null);
     setShowForm(false);
   };
   
-  // --- NEW: Handle category changes to clear total days if switching to Unpaid ---
   const handleCategoryChange = (e) => {
     const newCategory = e.target.value;
     setFormData({
@@ -149,6 +156,21 @@ const LeavePolicy = () => {
       totalDaysPerYear: newCategory === 'Unpaid' ? '' : formData.totalDaysPerYear
     });
   };
+  
+  // --- NEW: Handle type changes to clear monthly allowance if not applicable ---
+  const handleTypeChange = (e) => {
+    const newType = e.target.value.toUpperCase();
+    const newState = {
+        ...formData,
+        type: newType,
+    };
+    // If the type is changed to one that doesn't need an allowance, clear it
+    if (!['CL', 'SL', 'EL'].includes(newType)) {
+        newState.monthlyAllowance = '';
+    }
+    setFormData(newState);
+  };
+
 
   if (loading) {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
@@ -159,7 +181,7 @@ const LeavePolicy = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Leave Policies</h1>
         <button
-          onClick={() => { resetForm(); setShowForm(true); }} // Use resetForm to ensure clean state
+          onClick={() => { resetForm(); setShowForm(true); }}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"
         >
           <PlusIcon className="h-5 w-5" />
@@ -175,13 +197,12 @@ const LeavePolicy = () => {
         </div>
       )}
 
-      {/* --- MODIFIED: Add/Edit Policy Modal Form --- */}
+      {/* --- FINAL: Add/Edit Policy Modal Form --- */}
       <Modal open={showForm} onClose={resetForm}>
         <h2 className="text-lg font-semibold mb-4">
           {editingPolicy ? 'Edit Leave Policy' : 'Add New Leave Policy'}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* --- MODIFIED: Changed from select to input for flexibility --- */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Leave Type (e.g., CL, EL, LWP)
@@ -189,7 +210,7 @@ const LeavePolicy = () => {
             <input
               type="text"
               value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value.toUpperCase() })}
+              onChange={handleTypeChange} // Use new handler
               className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               required
               disabled={!!editingPolicy}
@@ -198,7 +219,6 @@ const LeavePolicy = () => {
              {!!editingPolicy && <p className="text-xs text-gray-500 mt-1">Leave type cannot be changed after creation.</p>}
           </div>
 
-          {/* --- NEW: Category Selection --- */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Category
@@ -227,7 +247,6 @@ const LeavePolicy = () => {
             />
           </div>
           
-          {/* --- MODIFIED: Conditionally render Total Days input --- */}
           {formData.category === 'Paid' && (
             <div className="animate-fadeIn">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -239,7 +258,25 @@ const LeavePolicy = () => {
                 onChange={(e) => setFormData({ ...formData, totalDaysPerYear: e.target.value })}
                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 min="1"
-                required={formData.category === 'Paid'} // Required only if category is 'Paid'
+                required={formData.category === 'Paid'}
+              />
+            </div>
+          )}
+
+          {/* --- NEW: Conditionally render Monthly Allowance input --- */}
+          {['CL', 'SL', 'EL'].includes(formData.type) && (
+            <div className="animate-fadeIn">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Monthly Allowance (Max leaves per month)
+              </label>
+              <input
+                type="number"
+                value={formData.monthlyAllowance}
+                onChange={(e) => setFormData({ ...formData, monthlyAllowance: e.target.value })}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                min="1"
+                required={['CL', 'SL', 'EL'].includes(formData.type)}
+                placeholder="e.g., 2"
               />
             </div>
           )}
@@ -262,7 +299,7 @@ const LeavePolicy = () => {
         </form>
       </Modal>
 
-      {/* --- MODIFIED: Table to display new data --- */}
+      {/* --- FINAL: Table to display all data --- */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -271,7 +308,6 @@ const LeavePolicy = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Type
                 </th>
-                {/* --- NEW: Category Column --- */}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Category
                 </th>
@@ -280,6 +316,10 @@ const LeavePolicy = () => {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Days/Year
+                </th>
+                {/* --- NEW: Monthly Allowance Column Header --- */}
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Monthly Allowance
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -294,7 +334,6 @@ const LeavePolicy = () => {
                       {policy.type}
                     </span>
                   </td>
-                  {/* --- NEW: Category Data Cell --- */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       policy.category === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
@@ -303,11 +342,14 @@ const LeavePolicy = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900">{policy.description}</div>
+                    <div className="text-sm text-gray-900">{policy.description || '-'}</div>
                   </td>
-                  {/* --- MODIFIED: Handle display for unpaid leaves --- */}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {policy.category === 'Paid' ? `${policy.totalDaysPerYear} days` : 'N/A'}
+                  </td>
+                  {/* --- NEW: Monthly Allowance Data Cell --- */}
+                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {['CL', 'SL', 'EL'].includes(policy.type) && policy.monthlyAllowance ? `${policy.monthlyAllowance} days` : 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex gap-4">
@@ -330,7 +372,8 @@ const LeavePolicy = () => {
                 </tr>
               )) : (
                 <tr>
-                    <td colSpan="5" className="text-center py-10 text-gray-500">No leave policies found.</td>
+                    {/* --- MODIFIED: Updated colSpan to 6 --- */}
+                    <td colSpan="6" className="text-center py-10 text-gray-500">No leave policies found.</td>
                 </tr>
               )}
             </tbody>

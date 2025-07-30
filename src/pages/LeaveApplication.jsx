@@ -5,6 +5,7 @@ import {
   EyeIcon
 } from '@heroicons/react/24/outline';
 
+// The Modal component remains unchanged.
 const Modal = ({ open, onClose, children }) => {
   if (!open) return null;
   return (
@@ -15,7 +16,7 @@ const Modal = ({ open, onClose, children }) => {
           onClick={onClose}
           aria-label="Close"
         >
-          &times;
+          ×
         </button>
         {children}
       </div>
@@ -23,11 +24,34 @@ const Modal = ({ open, onClose, children }) => {
   );
 };
 
+// --- NEW: Accurate working day calculation to match the backend ---
+const calculateWorkingDays = (startDate, endDate) => {
+    if (!startDate || !endDate) return 0;
+    
+    let days = 0;
+    const current = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // Adjust for timezone differences by working with UTC dates
+    current.setUTCHours(0, 0, 0, 0);
+    end.setUTCHours(0, 0, 0, 0);
+
+    while (current <= end) {
+        const dayOfWeek = current.getUTCDay(); // 0 = Sunday, 6 = Saturday
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            days++;
+        }
+        current.setUTCDate(current.getUTCDate() + 1);
+    }
+    return days;
+};
+
+
 const LeaveApplication = () => {
-  const { backendUrl, user } = useConfig();
+  const { backendUrl } = useConfig();
   const [leaveBalance, setLeaveBalance] = useState([]);
   const [myRequests, setMyRequests] = useState([]);
-  const [policies, setPolicies] = useState([]); // <-- NEW
+  const [policies, setPolicies] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     leaveType: '',
@@ -40,8 +64,22 @@ const LeaveApplication = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
 
   useEffect(() => {
-    fetchData();
-    fetchPolicies(); // <-- NEW
+    // Fetch all required data in parallel
+    const loadInitialData = async () => {
+        setLoading(true);
+        try {
+            await Promise.all([
+                fetchPolicies(),
+                fetchLeaveData()
+            ]);
+        } catch (error) {
+            console.error("Failed to load initial data", error);
+            setMessage("Could not load all required data.");
+        } finally {
+            setLoading(false);
+        }
+    };
+    loadInitialData();
   }, []);
 
   const fetchPolicies = async () => {
@@ -50,40 +88,35 @@ const LeaveApplication = () => {
       if (response.ok) {
         const data = await response.json();
         setPolicies(data);
-        console.log('Leave Policies:', data);
-        
       }
     } catch (error) {
-      // Optionally handle error
+      console.error('Error fetching policies:', error);
     }
   };
 
-  const fetchData = async () => {
+  const fetchLeaveData = async () => {
     try {
       const [balanceResponse, requestsResponse] = await Promise.all([
         fetch(`${backendUrl}/api/leave-balances/my`, { credentials: 'include' }),
         fetch(`${backendUrl}/api/leave-requests/my`, { credentials: 'include' })
       ]);
 
-      if (balanceResponse.ok) {
-        const balanceData = await balanceResponse.json();
-        setLeaveBalance(balanceData);
-      }
+      if (balanceResponse.ok) setLeaveBalance(await balanceResponse.json());
+      if (requestsResponse.ok) setMyRequests(await requestsResponse.json());
 
-      if (requestsResponse.ok) {
-        const requestsData = await requestsResponse.json();
-        setMyRequests(requestsData);
-      }
     } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error fetching leave data:', error);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
+
+    if (calculateWorkingDays(formData.fromDate, formData.toDate) <= 0) {
+        setMessage("The selected date range must include at least one working day.");
+        return;
+    }
 
     try {
       const response = await fetch(`${backendUrl}/api/leave-requests`, {
@@ -99,7 +132,7 @@ const LeaveApplication = () => {
         setMessage('Leave request submitted successfully!');
         setShowForm(false);
         setFormData({ leaveType: '', fromDate: '', toDate: '', reason: '' });
-        fetchData();
+        fetchLeaveData(); // Refresh both balance and requests
       } else {
         setMessage(data.error || 'Failed to submit leave request');
       }
@@ -120,22 +153,10 @@ const LeaveApplication = () => {
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString();
   };
-
-  const calculateDays = (fromDate, toDate) => {
-    const from = new Date(fromDate);
-    const to = new Date(toDate);
-    const diffTime = Math.abs(to - from);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays + 1;
-  };
-
+  
   const getLeaveTypeName = (type) => {
-    switch (type) {
-      case 'CL': return 'Casual Leave';
-      case 'EL': return 'Earned Leave';
-      case 'SL': return 'Sick Leave';
-      default: return type;
-    }
+    const policy = policies.find(p => p.type === type);
+    return policy?.description || type;
   };
 
   if (loading) {
@@ -163,42 +184,58 @@ const LeaveApplication = () => {
         </div>
       )}
 
-      {/* Leave Balance Section */}
+      {/* --- MODIFIED: Leave Balance Section to show all policies --- */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">My Leave Balance</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">My Leave Balance ({new Date().getFullYear()})</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {policies.length === 0 && (
-            <div className="col-span-3 text-center text-gray-500">No leave policies found.</div>
+            <div className="col-span-3 text-center text-gray-500">No leave policies defined by admin.</div>
           )}
           {policies.map((policy) => {
-            const balance = leaveBalance.find(b => b.leaveType === policy.type);
-            if (!balance) return null;
-            return (
-              <div key={balance._id} className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="font-medium text-gray-900">{getLeaveTypeName(balance.leaveType)}</span>
-                  <span className="text-sm text-gray-500">{balance.year}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-2xl font-bold text-blue-600">{balance.total - balance.used}</span>
-                  <span className="text-sm text-gray-500">available</span>
-                </div>
-                <div className="mt-2 text-sm text-gray-600">
-                  Used: {balance.used} / Total: {balance.total}
-                </div>
-                <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full" 
-                    style={{ width: `${(balance.used / balance.total) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-            );
+            if (policy.category === 'Paid') {
+                const balance = leaveBalance.find(b => b.leaveType === policy.type);
+                if (!balance) return null; // Only show paid balance if it exists for the user
+                const available = balance.total - balance.used;
+                return (
+                  <div key={policy._id} className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-medium text-gray-900">{getLeaveTypeName(balance.leaveType)}</span>
+                      <span className={`text-sm px-2 py-1 rounded-full ${policy.category === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{policy.category}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-blue-600">{available}</span>
+                      <span className="text-sm text-gray-500">available</span>
+                    </div>
+                    <div className="mt-2 text-sm text-gray-600">
+                      Used: {balance.used} / Total: {balance.total}
+                    </div>
+                    <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full" 
+                        style={{ width: `${balance.total > 0 ? (balance.used / balance.total) * 100 : 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                );
+            } else { // Handle Unpaid policies
+                return (
+                    <div key={policy._id} className="bg-gray-50 p-4 rounded-lg">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-medium text-gray-900">{getLeaveTypeName(policy.type)}</span>
+                          <span className={`text-sm px-2 py-1 rounded-full ${policy.category === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{policy.category}</span>
+                        </div>
+                        <div className="flex justify-between items-center mt-2 pt-2">
+                          <span className="text-lg font-semibold text-gray-700">Available</span>
+                          <span className="text-sm text-gray-500">No balance limit</span>
+                        </div>
+                    </div>
+                );
+            }
           })}
         </div>
       </div>
 
-      {/* Leave Application Modal */}
+      {/* --- MODIFIED: Leave Application Modal --- */}
       <Modal open={showForm} onClose={() => setShowForm(false)}>
         <h2 className="text-lg font-semibold mb-4">Apply for Leave</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -214,16 +251,37 @@ const LeaveApplication = () => {
                 required
               >
                 <option value="">Select Leave Type</option>
+                {/* MODIFIED: Loop through all policies */}
                 {policies.map((policy) => {
-                  const balance = leaveBalance.find(b => b.leaveType === policy.type);
-                  if (!balance) return null;
-                  return (
-                    <option key={policy.type} value={policy.type}>
-                      {getLeaveTypeName(policy.type)} (Available: {balance.total - balance.used})
-                    </option>
-                  );
+                  if (policy.category === 'Paid') {
+                    const balance = leaveBalance.find(b => b.leaveType === policy.type);
+                    if (!balance || (balance.total - balance.used <= 0)) return null; // Don't show if no balance
+                    return (
+                      <option key={policy.type} value={policy.type}>
+                        {getLeaveTypeName(policy.type)} (Available: {balance.total - balance.used})
+                      </option>
+                    );
+                  } else {
+                    // Always show unpaid leave types
+                    return (
+                        <option key={policy.type} value={policy.type}>
+                            {getLeaveTypeName(policy.type)} (Unpaid)
+                        </option>
+                    );
+                  }
                 })}
               </select>
+            </div>
+            <div>
+               <label className="block text-sm font-medium text-gray-700 mb-1">
+                Number of Days
+              </label>
+              <input
+                type="text"
+                value={calculateWorkingDays(formData.fromDate, formData.toDate)}
+                className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
+                readOnly
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -249,17 +307,6 @@ const LeaveApplication = () => {
                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 min={formData.fromDate || new Date().toISOString().split('T')[0]}
                 required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Number of Days
-              </label>
-              <input
-                type="text"
-                value={formData.fromDate && formData.toDate ? calculateDays(formData.fromDate, formData.toDate) : ''}
-                className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
-                readOnly
               />
             </div>
           </div>
@@ -294,7 +341,7 @@ const LeaveApplication = () => {
         </form>
       </Modal>
 
-      {/* My Leave Requests */}
+      {/* --- MODIFIED: My Leave Requests table to use stored numberOfDays --- */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">My Leave Requests</h3>
@@ -328,14 +375,15 @@ const LeaveApplication = () => {
                 <tr key={request._id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                      {request.leaveType}
+                      {getLeaveTypeName(request.leaveType)}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatDate(request.fromDate)} - {formatDate(request.toDate)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {calculateDays(request.fromDate, request.toDate)} days
+                    {/* MODIFIED: Use the stored number of days */}
+                    {request.numberOfDays} days
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>
@@ -361,58 +409,65 @@ const LeaveApplication = () => {
         </div>
       </div>
 
-      {/* Request Details Modal */}
+      {/* --- MODIFIED: Request Details Modal to use stored numberOfDays --- */}
       {selectedRequest && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Leave Request Details</h3>
-              <div className="space-y-3">
-                <div>
-                  <span className="font-medium">Leave Type:</span> {getLeaveTypeName(selectedRequest.leaveType)}
-                </div>
-                <div>
-                  <span className="font-medium">From:</span> {formatDate(selectedRequest.fromDate)}
-                </div>
-                <div>
-                  <span className="font-medium">To:</span> {formatDate(selectedRequest.toDate)}
-                </div>
-                <div>
-                  <span className="font-medium">Days:</span> {calculateDays(selectedRequest.fromDate, selectedRequest.toDate)}
-                </div>
-                <div>
-                  <span className="font-medium">Reason:</span>
-                  <p className="text-sm text-gray-600 mt-1">{selectedRequest.reason}</p>
-                </div>
-                <div>
-                  <span className="font-medium">Status:</span> {selectedRequest.status}
-                </div>
-                {selectedRequest.actionBy && (
-                  <div>
-                    <span className="font-medium">Action By:</span> {selectedRequest.actionBy?.name}
-                  </div>
-                )}
-                {selectedRequest.remarks && (
-                  <div>
-                    <span className="font-medium">Remarks:</span>
-                    <p className="text-sm text-gray-600 mt-1">{selectedRequest.remarks}</p>
-                  </div>
-                )}
+        <Modal open={!!selectedRequest} onClose={() => setSelectedRequest(null)}>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Leave Request Details</h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="font-medium text-gray-600">Leave Type:</span> 
+                <span className="font-semibold">{getLeaveTypeName(selectedRequest.leaveType)}</span>
               </div>
-              <div className="flex justify-end mt-4">
-                <button
-                  onClick={() => setSelectedRequest(null)}
-                  className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
-                >
-                  Close
-                </button>
+              <div className="flex justify-between">
+                <span className="font-medium text-gray-600">Category:</span> 
+                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${selectedRequest.leaveCategory === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{selectedRequest.leaveCategory}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="font-medium text-gray-600">From Date:</span> 
+                <span>{formatDate(selectedRequest.fromDate)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium text-gray-600">To Date:</span> 
+                <span>{formatDate(selectedRequest.toDate)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium text-gray-600">Number of Days:</span> 
+                {/* MODIFIED: Use stored value */}
+                <span className="font-bold">{selectedRequest.numberOfDays}</span>
+              </div>
+              <div className="pt-2">
+                <span className="font-medium text-gray-600">Reason:</span>
+                <p className="text-gray-800 mt-1 p-2 bg-gray-50 rounded">{selectedRequest.reason}</p>
+              </div>
+              <div className="flex justify-between border-t pt-2">
+                <span className="font-medium text-gray-600">Status:</span> 
+                <span className={`font-bold ${getStatusColor(selectedRequest.status).replace('bg-', 'text-')}`}>{selectedRequest.status}</span>
+              </div>
+              {selectedRequest.actionBy && (
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-600">Action By:</span> 
+                  <span>{selectedRequest.actionBy?.name || 'N/A'}</span>
+                </div>
+              )}
+              {selectedRequest.remarks && (
+                <div className="pt-2">
+                  <span className="font-medium text-gray-600">Manager Remarks:</span>
+                  <p className="text-gray-800 mt-1 p-2 bg-gray-50 rounded">{selectedRequest.remarks}</p>
+                </div>
+              )}
             </div>
-          </div>
-        </div>
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={() => setSelectedRequest(null)}
+                className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+              >
+                Close
+              </button>
+            </div>
+        </Modal>
       )}
     </div>
   );
 };
 
-export default LeaveApplication; 
+export default LeaveApplication;
