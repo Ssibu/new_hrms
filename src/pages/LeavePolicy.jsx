@@ -25,6 +25,27 @@ const Modal = ({ open, onClose, children }) => {
   );
 };
 
+// --- NEW: Helper for a cleaner table display ---
+const getLeavePolicyDetails = (policy) => {
+    if (policy.category === 'Unpaid') {
+        return { renewal: 'N/A', annual: 'N/A', monthly: 'N/A' };
+    }
+    if (policy.renewalType === 'Monthly') {
+        return { 
+            renewal: 'Monthly', 
+            annual: 'N/A', 
+            monthly: `${policy.monthlyDayLimit} (Grant)` 
+        };
+    }
+    // Default to Yearly
+    return { 
+        renewal: 'Yearly', 
+        annual: `${policy.totalDaysPerYear} days`, 
+        monthly: policy.monthlyDayLimit ? `${policy.monthlyDayLimit} (Limit)` : 'None'
+    };
+};
+
+
 const LeavePolicy = () => {
   const { backendUrl } = useConfig();
   const [policies, setPolicies] = useState([]);
@@ -32,14 +53,16 @@ const LeavePolicy = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState(null);
   
-  // --- MODIFIED: Added 'monthlyAllowance' to the initial state ---
-  const [formData, setFormData] = useState({
+  // --- MODIFIED: Updated state to match the new schema ---
+  const initialFormData = {
     type: '',
     description: '',
-    category: 'Paid', // Default to 'Paid' for new policies
+    category: 'Paid',
+    renewalType: 'Yearly', // Default for new 'Paid' policies
     totalDaysPerYear: '',
-    monthlyAllowance: '' // New state for monthly allowance
-  });
+    monthlyDayLimit: '' 
+  };
+  const [formData, setFormData] = useState(initialFormData);
   const [message, setMessage] = useState('');
 
   useEffect(() => {
@@ -66,17 +89,22 @@ const LeavePolicy = () => {
     e.preventDefault();
     setMessage('');
 
-    // --- MODIFIED: Prepare data based on category and type ---
+    // --- MODIFIED: Prepare a clean data object for submission ---
     let submissionData = { ...formData };
     
-    // 1. Handle Unpaid category
+    // Clean data based on category and renewalType
     if (submissionData.category === 'Unpaid') {
+      delete submissionData.renewalType;
       delete submissionData.totalDaysPerYear;
-    }
-
-    // 2. Handle monthly allowance based on type
-    if (!['CL', 'SL', 'EL'].includes(submissionData.type)) {
-      delete submissionData.monthlyAllowance;
+      delete submissionData.monthlyDayLimit;
+    } else { // Category is 'Paid'
+        if (submissionData.renewalType === 'Yearly') {
+            if (!submissionData.monthlyDayLimit) {
+                delete submissionData.monthlyDayLimit; // Don't send empty optional field
+            }
+        } else { // renewalType is 'Monthly'
+            delete submissionData.totalDaysPerYear;
+        }
     }
 
     try {
@@ -90,7 +118,7 @@ const LeavePolicy = () => {
         method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(submissionData) // Send the correctly structured data
+        body: JSON.stringify(submissionData)
       });
 
       const data = await response.json();
@@ -107,15 +135,16 @@ const LeavePolicy = () => {
     }
   };
 
-  // --- MODIFIED: Populate form with all fields, including monthlyAllowance ---
   const handleEdit = (policy) => {
     setEditingPolicy(policy);
     setFormData({
       type: policy.type,
       description: policy.description || '',
       category: policy.category,
+      // Provide defaults for fields that might not exist on older data
+      renewalType: policy.renewalType || 'Yearly', 
       totalDaysPerYear: policy.totalDaysPerYear?.toString() || '',
-      monthlyAllowance: policy.monthlyAllowance?.toString() || '' // Populate allowance
+      monthlyDayLimit: policy.monthlyDayLimit?.toString() || '' 
     });
     setShowForm(true);
   };
@@ -141,36 +170,39 @@ const LeavePolicy = () => {
     }
   };
 
-  // --- MODIFIED: Reset form now includes monthlyAllowance ---
   const resetForm = () => {
-    setFormData({ type: '', description: '', category: 'Paid', totalDaysPerYear: '', monthlyAllowance: '' });
+    setFormData(initialFormData);
     setEditingPolicy(null);
     setShowForm(false);
   };
   
-  const handleCategoryChange = (e) => {
-    const newCategory = e.target.value;
-    setFormData({
-      ...formData,
-      category: newCategory,
-      totalDaysPerYear: newCategory === 'Unpaid' ? '' : formData.totalDaysPerYear
-    });
-  };
-  
-  // --- NEW: Handle type changes to clear monthly allowance if not applicable ---
-  const handleTypeChange = (e) => {
-    const newType = e.target.value.toUpperCase();
-    const newState = {
-        ...formData,
-        type: newType,
-    };
-    // If the type is changed to one that doesn't need an allowance, clear it
-    if (!['CL', 'SL', 'EL'].includes(newType)) {
-        newState.monthlyAllowance = '';
-    }
-    setFormData(newState);
-  };
+  // --- NEW: Handlers to manage form state changes ---
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    const newFormData = { ...formData, [name]: value };
 
+    // When category changes, reset dependent fields
+    if (name === 'category') {
+        if (value === 'Unpaid') {
+            newFormData.renewalType = '';
+            newFormData.totalDaysPerYear = '';
+            newFormData.monthlyDayLimit = '';
+        } else { // Switching back to 'Paid'
+            newFormData.renewalType = 'Yearly'; // Default to Yearly
+        }
+    }
+    
+    // When renewalType changes, reset the no-longer-relevant field
+    if (name === 'renewalType') {
+        if (value === 'Yearly') {
+            newFormData.monthlyDayLimit = ''; // monthly limit is optional, can be cleared
+        } else { // value is 'Monthly'
+            newFormData.totalDaysPerYear = '';
+        }
+    }
+
+    setFormData(newFormData);
+  };
 
   if (loading) {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
@@ -203,177 +235,124 @@ const LeavePolicy = () => {
           {editingPolicy ? 'Edit Leave Policy' : 'Add New Leave Policy'}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Leave Type (e.g., CL, EL, LWP)
-            </label>
-            <input
-              type="text"
-              value={formData.type}
-              onChange={handleTypeChange} // Use new handler
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              required
-              disabled={!!editingPolicy}
-              placeholder="e.g. CL"
-            />
-             {!!editingPolicy && <p className="text-xs text-gray-500 mt-1">Leave type cannot be changed after creation.</p>}
-          </div>
+            {/* Leave Type */}
+            <input name="type" type="hidden" value={formData.type} />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Leave Type (e.g., CL, EL, LWP)
+              </label>
+              <input
+                type="text"
+                name="type"
+                value={formData.type}
+                onChange={(e) => setFormData({...formData, type: e.target.value.toUpperCase()})}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                required
+                disabled={!!editingPolicy}
+                placeholder="e.g. CL"
+              />
+              {!!editingPolicy && <p className="text-xs text-gray-500 mt-1">Leave type cannot be changed after creation.</p>}
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category
-            </label>
-            <select
-              value={formData.category}
-              onChange={handleCategoryChange}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              required
-            >
-              <option value="Paid">Paid</option>
-              <option value="Unpaid">Unpaid</option>
-            </select>
-          </div>
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea name="description" value={formData.description} onChange={handleFormChange} className="w-full p-2 border border-gray-300 rounded-md" rows="2" placeholder="e.g. Casual Leave"/>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              rows="3"
-              placeholder="Enter policy description..."
-            />
-          </div>
+            {/* Category */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <select name="category" value={formData.category} onChange={handleFormChange} className="w-full p-2 border border-gray-300 rounded-md">
+                <option value="Paid">Paid</option>
+                <option value="Unpaid">Unpaid</option>
+              </select>
+            </div>
           
-          {formData.category === 'Paid' && (
-            <div className="animate-fadeIn">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Total Days Per Year
-              </label>
-              <input
-                type="number"
-                value={formData.totalDaysPerYear}
-                onChange={(e) => setFormData({ ...formData, totalDaysPerYear: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                min="1"
-                required={formData.category === 'Paid'}
-              />
-            </div>
-          )}
+            {/* --- Conditional Fields for PAID policies --- */}
+            {formData.category === 'Paid' && (
+              <div className="space-y-4 p-4 border border-gray-200 rounded-md animate-fadeIn">
+                {/* Renewal Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Renewal Type</label>
+                  <select name="renewalType" value={formData.renewalType} onChange={handleFormChange} className="w-full p-2 border border-gray-300 rounded-md">
+                    <option value="Yearly">Yearly</option>
+                    <option value="Monthly">Monthly</option>
+                  </select>
+                </div>
 
-          {/* --- NEW: Conditionally render Monthly Allowance input --- */}
-          {['CL', 'SL', 'EL'].includes(formData.type) && (
-            <div className="animate-fadeIn">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Monthly Allowance (Max leaves per month)
-              </label>
-              <input
-                type="number"
-                value={formData.monthlyAllowance}
-                onChange={(e) => setFormData({ ...formData, monthlyAllowance: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                min="1"
-                required={['CL', 'SL', 'EL'].includes(formData.type)}
-                placeholder="e.g., 2"
-              />
-            </div>
-          )}
+                {/* Yearly Renewal Fields */}
+                {formData.renewalType === 'Yearly' && (
+                    <div className="space-y-4 animate-fadeIn">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Total Days Per Year</label>
+                        <input type="number" name="totalDaysPerYear" value={formData.totalDaysPerYear} onChange={handleFormChange} className="w-full p-2 border border-gray-300 rounded-md" min="1" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Usage Limit (Optional)</label>
+                        <input type="number" name="monthlyDayLimit" value={formData.monthlyDayLimit} onChange={handleFormChange} className="w-full p-2 border border-gray-300 rounded-md" min="1" placeholder="e.g., 3" />
+                      </div>
+                    </div>
+                )}
+                
+                {/* Monthly Renewal Fields */}
+                {formData.renewalType === 'Monthly' && (
+                    <div className="animate-fadeIn">
+                       <label className="block text-sm font-medium text-gray-700 mb-1">Days Granted Per Month</label>
+                       <input type="number" name="monthlyDayLimit" value={formData.monthlyDayLimit} onChange={handleFormChange} className="w-full p-2 border border-gray-300 rounded-md" min="1" required />
+                    </div>
+                )}
+              </div>
+            )}
 
           <div className="flex gap-2 justify-end pt-4">
-            <button
-              type="button"
-              onClick={resetForm}
-              className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-            >
-              {editingPolicy ? 'Update Policy' : 'Create Policy'}
-            </button>
+            <button type="button" onClick={resetForm} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Cancel</button>
+            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">{editingPolicy ? 'Update Policy' : 'Create Policy'}</button>
           </div>
         </form>
       </Modal>
 
-      {/* --- FINAL: Table to display all data --- */}
+      {/* --- FINAL: Table to display new policy structure --- */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Days/Year
-                </th>
-                {/* --- NEW: Monthly Allowance Column Header --- */}
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Monthly Allowance
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                {/* NEW Column */}
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Renewal</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Annual Grant</th>
+                {/* MODIFIED Header */}
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Rule</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {policies.length > 0 ? policies.map((policy) => (
-                <tr key={policy._id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-800">
-                      {policy.type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      policy.category === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {policy.category}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900">{policy.description || '-'}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {policy.category === 'Paid' ? `${policy.totalDaysPerYear} days` : 'N/A'}
-                  </td>
-                  {/* --- NEW: Monthly Allowance Data Cell --- */}
-                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {['CL', 'SL', 'EL'].includes(policy.type) && policy.monthlyAllowance ? `${policy.monthlyAllowance} days` : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex gap-4">
-                      <button
-                        onClick={() => handleEdit(policy)}
-                        className="text-blue-600 hover:text-blue-900 focus:outline-none"
-                        aria-label="Edit"
-                      >
-                        <PencilIcon className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(policy._id)}
-                        className="text-red-600 hover:text-red-900 focus:outline-none"
-                         aria-label="Delete"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )) : (
+              {policies.length > 0 ? policies.map((policy) => {
+                const details = getLeavePolicyDetails(policy);
+                return (
+                    <tr key={policy._id}>
+                      <td className="px-6 py-4 whitespace-nowrap"><span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-800">{policy.type}</span></td>
+                      <td className="px-6 py-4"><div className="text-sm text-gray-900">{policy.description || '-'}</div></td>
+                      <td className="px-6 py-4 whitespace-nowrap"><span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${policy.category === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{policy.category}</span></td>
+                      {/* NEW Data Cell */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{details.renewal}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{details.annual}</td>
+                      {/* MODIFIED Data Cell */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{details.monthly}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex gap-4">
+                          <button onClick={() => handleEdit(policy)} className="text-blue-600 hover:text-blue-900 focus:outline-none" aria-label="Edit"><PencilIcon className="h-5 w-5" /></button>
+                          <button onClick={() => handleDelete(policy._id)} className="text-red-600 hover:text-red-900 focus:outline-none" aria-label="Delete"><TrashIcon className="h-5 w-5" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                );
+              }) : (
                 <tr>
-                    {/* --- MODIFIED: Updated colSpan to 6 --- */}
-                    <td colSpan="6" className="text-center py-10 text-gray-500">No leave policies found.</td>
+                    <td colSpan="7" className="text-center py-10 text-gray-500">No leave policies found.</td>
                 </tr>
               )}
             </tbody>
