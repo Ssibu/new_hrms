@@ -1,83 +1,85 @@
 import {
-  HomeIcon,
+  RectangleGroupIcon,   // <-- NEW: For Dashboard
   UsersIcon,
-  DocumentTextIcon,
+  BookOpenIcon,         // <-- NEW: For HR Policy
+  ScaleIcon,            // <-- NEW: For Leave Policy
+  InboxArrowDownIcon,   // <-- NEW: For Leave Requests
   ClipboardDocumentListIcon,
   CheckCircleIcon,
   UserIcon,
+  UserGroupIcon,        // <-- NEW: For User Management
   CalendarIcon,
-  ClockIcon
 } from '@heroicons/react/24/outline';
 
-// Centralized navigation configuration
+// Centralized navigation configuration with improved icons for better distinction
 export const navigationConfig = [
   {
     to: '/layout',
     label: 'Dashboard',
-    icon: HomeIcon,
+    icon: RectangleGroupIcon, // Changed from HomeIcon
     permission: null, // Always accessible
     blockForEmployee: false
   },
   {
     to: '/layout/employees',
     label: 'Employees',
-    icon: UsersIcon,
+    icon: UsersIcon, // Perfect match
     permission: 'employee:read',
     blockForEmployee: false
   },
   {
     to: '/layout/hr-policy',
     label: 'HR Policy',
-    icon: DocumentTextIcon,
+    icon: BookOpenIcon, // Changed from DocumentTextIcon
     permission: null,
     blockForEmployee: true
   },
   {
     to: '/layout/leave-policy',
     label: 'Leave Policy',
-    icon: CalendarIcon,
+    icon: ScaleIcon, // Changed from CalendarIcon to represent rules/balance
     permission: 'leave:read',
     blockForEmployee: true
   },
   {
     to: '/layout/leave-requests',
     label: 'Leave Requests',
-    icon: ClockIcon,
-    permission: 'leave:update', // HR needs update permission to approve/reject
+    icon: InboxArrowDownIcon, // Changed from ClockIcon to represent incoming items
+    permission: 'leave:update',
     blockForEmployee: true
   },
   {
     to: '/layout/leave-application',
     label: 'Leave Application',
-    icon: CalendarIcon,
-    permission: 'leave:create', // Employees need create permission to apply
+    icon: CalendarIcon, // Perfect match for applying for dates
+    permission: 'leave:create',
     blockForEmployee: false
   },
   {
     to: '/layout/tasks',
     label: 'Tasks',
-    icon: ClipboardDocumentListIcon,
+    icon: ClipboardDocumentListIcon, // Perfect match
     permission: 'task:read',
     blockForEmployee: true
   },
   {
     to: '/layout/task-status',
     label: 'Task Status',
-    icon: CheckCircleIcon,
+    icon: CheckCircleIcon, // Perfect match
     permission: 'task:read',
     blockForEmployee: false
   },
   {
     to: '/layout/profile',
     label: 'Profile',
-    icon: UserIcon,
+    icon: UserIcon, // Perfect match for a single user's profile
     permission: null,
     blockForEmployee: false
   },
   {
     to: '/layout/users',
     label: 'User Management',
-    icon: UserIcon,
+    icon: UserGroupIcon, // Changed from UserIcon to represent managing multiple users
     permission: 'admin:manage',
     blockForEmployee: true
   }
@@ -86,29 +88,26 @@ export const navigationConfig = [
 // Helper function to check if user has permission for a route
 export const hasPermission = (user, requiredPermission) => {
   if (!user) return false;
+  // Admin has all permissions
   if (user.role === 'Admin') return true;
+  // If no permission is required, the route is public to logged-in users
   if (!requiredPermission) return true;
+  // Check if the user's permissions array includes the required one
   return user.permissions && user.permissions.includes(requiredPermission);
 };
 
-// Helper function to check if route should be blocked for employee
+// Helper function to check if a route should be blocked for the 'Employee' role
 export const isBlockedForEmployee = (user, blockForEmployee) => {
   if (!user) return false;
   return blockForEmployee && user.role === 'Employee';
 };
 
-// Get filtered navigation items based on user permissions
+// Get filtered navigation items based on user role and permissions
 export const getFilteredNavigation = (user) => {
   if (!user) return [];
 
+  // Refactored for clarity: an item is shown if the user has permission AND it's not blocked for their role.
   return navigationConfig.filter(item => {
-    // Admin can see everything
-    if (user.role === 'Admin') return true;
-    
-    // Check if blocked for employee
-    if (isBlockedForEmployee(user, item.blockForEmployee)) return false;
-    
-    // Check permission
-    return hasPermission(user, item.permission);
+    return hasPermission(user, item.permission) && !isBlockedForEmployee(user, item.blockForEmployee);
   });
-}; 
+};

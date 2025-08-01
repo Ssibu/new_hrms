@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useConfig } from '../context/ConfigContext';
 import {
   CheckIcon,
   XMarkIcon,
   EyeIcon,
   FunnelIcon,
-  PencilSquareIcon, // <-- NEW: Icon for the edit button
+  PencilSquareIcon,
+  EllipsisVerticalIcon, // Icon for the three-dot menu
 } from '@heroicons/react/24/outline';
 
 // Helper function to calculate working days (excluding weekends) on the client-side
-// This provides instant feedback to the user in the edit modal.
 const calculateClientWorkingDays = (startDate, endDate) => {
     if (!startDate || !endDate) return 0;
     let days = 0;
@@ -46,11 +46,15 @@ const LeaveRequests = () => {
   // Modal State Management
   const [showActionModal, setShowActionModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false); // <-- NEW: State for Edit Modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  
+  // --- NEW: State to manage which action menu is open ---
+  const [openActionMenuId, setOpenActionMenuId] = useState(null);
+  const menuRef = useRef(null);
 
   // Data for Modals
   const [actionData, setActionData] = useState({ status: '', remarks: '' });
-  const [editFormData, setEditFormData] = useState({ fromDate: '', toDate: '' }); // <-- NEW: State for Edit Form
+  const [editFormData, setEditFormData] = useState({ fromDate: '', toDate: '' });
   
   const [message, setMessage] = useState('');
 
@@ -99,28 +103,42 @@ const LeaveRequests = () => {
     initialFetch();
   }, [fetchRequests, fetchPolicies]);
 
-  // --- ACTION HANDLERS ---
+  // --- NEW: useEffect to handle clicking outside the action menu ---
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpenActionMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // --- ACTION HANDLERS (modified to close the menu) ---
 
   const handleActionClick = (request, status) => {
     setActionData({ status, remarks: '' });
     setSelectedRequest(request);
     setShowActionModal(true);
+    setOpenActionMenuId(null); // Close menu
   };
 
   const handleViewDetails = (request) => {
     setSelectedRequest(request);
     setShowDetailsModal(true);
+    setOpenActionMenuId(null); // Close menu
   };
   
-  // --- NEW: Handler to open the Edit Modal ---
   const handleEditClick = (request) => {
     setSelectedRequest(request);
-    // Format dates to 'YYYY-MM-DD' for the input[type="date"] fields
     setEditFormData({
         fromDate: new Date(request.fromDate).toISOString().split('T')[0],
         toDate: new Date(request.toDate).toISOString().split('T')[0],
     });
     setShowEditModal(true);
+    setOpenActionMenuId(null); // Close menu
   };
 
   const submitAction = async () => {
@@ -145,7 +163,6 @@ const LeaveRequests = () => {
     }
   };
 
-  // --- NEW: Function to handle the submission of the edited dates ---
   const handleUpdateDate = async (e) => {
     e.preventDefault();
     if (!selectedRequest) return;
@@ -170,7 +187,6 @@ const LeaveRequests = () => {
         console.error('Error updating dates:', error);
     }
   };
-
 
   // --- HELPER FUNCTIONS ---
   const getStatusColor = (status) => {
@@ -205,7 +221,6 @@ const LeaveRequests = () => {
         <div className="bg-white p-6 rounded-lg shadow-md animate-fadeIn">
           <h3 className="text-lg font-semibold mb-4">Filter Requests</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-             {/* Filter inputs go here, unchanged */}
              <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="w-full p-2 border border-gray-300 rounded-md">
@@ -251,7 +266,7 @@ const LeaveRequests = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Days</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -268,16 +283,59 @@ const LeaveRequests = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(request.fromDate)} - {formatDate(request.toDate)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-bold text-gray-900">{request.numberOfDays}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-center"><span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>{request.status}</span></td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex gap-3">
-                      <button onClick={() => handleViewDetails(request)} className="text-blue-600 hover:text-blue-900" title="View Details"><EyeIcon className="h-5 w-5" /></button>
-                      {request.status === 'Pending' && (
-                        <>
-                          {/* --- NEW EDIT BUTTON --- */}
-                          <button onClick={() => handleEditClick(request)} className="text-indigo-600 hover:text-indigo-900" title="Edit Dates"><PencilSquareIcon className="h-5 w-5" /></button>
-                          <button onClick={() => handleActionClick(request, 'Approved')} className="text-green-600 hover:text-green-900" title="Approve"><CheckIcon className="h-5 w-5" /></button>
-                          <button onClick={() => handleActionClick(request, 'Rejected')} className="text-red-600 hover:text-red-900" title="Reject"><XMarkIcon className="h-5 w-5" /></button>
-                        </>
+                  
+                  {/* --- MODIFIED: Actions Cell with Dropdown Menu --- */}
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                    <div className="relative inline-block text-left" ref={openActionMenuId === request._id ? menuRef : null}>
+                      <div>
+                        <button
+                          onClick={() => setOpenActionMenuId(openActionMenuId === request._id ? null : request._id)}
+                          className="inline-flex justify-center w-full rounded-md p-2 text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500"
+                        >
+                          <EllipsisVerticalIcon className="h-5 w-5" />
+                        </button>
+                      </div>
+
+                      {/* Dropdown panel, conditionally rendered */}
+                      {openActionMenuId === request._id && (
+                        <div
+                          className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
+                        >
+                          <div className="py-1">
+                            <button
+                              onClick={() => handleViewDetails(request)}
+                              className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              <EyeIcon className="h-5 w-5 text-blue-500" />
+                              View Details
+                            </button>
+                            {request.status === 'Pending' && (
+                              <>
+                                <button
+                                  onClick={() => handleEditClick(request)}
+                                  className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  <PencilSquareIcon className="h-5 w-5 text-indigo-500" />
+                                  Edit Dates
+                                </button>
+                                <button
+                                  onClick={() => handleActionClick(request, 'Approved')}
+                                  className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  <CheckIcon className="h-5 w-5 text-green-500" />
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleActionClick(request, 'Rejected')}
+                                  className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  <XMarkIcon className="h-5 w-5 text-red-500" />
+                                  Reject
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </td>
@@ -288,9 +346,9 @@ const LeaveRequests = () => {
         </div>
       </div>
 
-      {/* Details Modal (unchanged) */}
+      {/* Details Modal */}
       {showDetailsModal && selectedRequest && (
-         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
             <div className="relative p-5 border w-full max-w-md shadow-lg rounded-md bg-white animate-fadeIn">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Leave Request Details</h3>
@@ -312,9 +370,9 @@ const LeaveRequests = () => {
         </div>
       )}
 
-      {/* Action Modal (unchanged) */}
+      {/* Action Modal */}
       {showActionModal && selectedRequest && (
-         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
             <div className="relative p-5 border w-full max-w-md shadow-lg rounded-md bg-white animate-fadeIn">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">{actionData.status} Leave Request</h3>
@@ -331,7 +389,7 @@ const LeaveRequests = () => {
         </div>
       )}
 
-      {/* --- NEW: Edit Request Modal --- */}
+      {/* Edit Request Modal */}
       {showEditModal && selectedRequest && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
             <div className="relative p-5 border w-full max-w-lg shadow-lg rounded-md bg-white animate-fadeIn">
