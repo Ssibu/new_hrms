@@ -136,7 +136,7 @@ const UserManagement = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-lg p-8 mt-8 transition-all duration-200 hover:shadow-2xl">
+    <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-lg p-8 mt-8 transition-all duration-200 hover:shadow-2xl">
       <h2 className="text-3xl font-extrabold text-blue-900 mb-8 tracking-tight drop-shadow">User Management</h2>
       {error && <div className="text-red-600 mb-4">{error}</div>}
       
