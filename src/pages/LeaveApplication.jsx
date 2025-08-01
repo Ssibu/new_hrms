@@ -9,7 +9,7 @@ import {
 const Modal = ({ open, onClose, children }) => {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 w-screen min-h-screen z-50 flex items-center justify-center bg-black bg-opacity-40">
+    <div className="fixed inset-0 w-screen min-h-screen z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm bg-opacity-40">
       <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg relative animate-fadeIn">
         <button
           className="absolute top-3 right-3 text-gray-400 hover:text-blue-600 text-2xl font-bold focus:outline-none"

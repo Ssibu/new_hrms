@@ -348,7 +348,7 @@ const LeaveRequests = () => {
 
       {/* Details Modal */}
       {showDetailsModal && selectedRequest && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-gray-600/70 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center">
             <div className="relative p-5 border w-full max-w-md shadow-lg rounded-md bg-white animate-fadeIn">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Leave Request Details</h3>
@@ -372,7 +372,7 @@ const LeaveRequests = () => {
 
       {/* Action Modal */}
       {showActionModal && selectedRequest && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-gray-600/70 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center">
             <div className="relative p-5 border w-full max-w-md shadow-lg rounded-md bg-white animate-fadeIn">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">{actionData.status} Leave Request</h3>
@@ -381,7 +381,7 @@ const LeaveRequests = () => {
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Remarks (Optional)</label><textarea value={actionData.remarks} onChange={(e) => setActionData({ ...actionData, remarks: e.target.value })} className="w-full p-2 border border-gray-300 rounded-md" rows="3" placeholder="Enter remarks..."/></div>
                 </div>
                 <div className="flex justify-end gap-2 mt-4">
-                  <button onClick={() => setShowActionModal(false)} className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">Cancel</button>
+                  <button onClick={() => setShowActionModal(false)} className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600/70">Cancel</button>
                   <button onClick={submitAction} className={`px-4 py-2 rounded-md text-white ${actionData.status === 'Approved' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}>{actionData.status}</button>
                 </div>
               </div>
@@ -391,7 +391,7 @@ const LeaveRequests = () => {
 
       {/* Edit Request Modal */}
       {showEditModal && selectedRequest && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-gray-600/70 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center">
             <div className="relative p-5 border w-full max-w-lg shadow-lg rounded-md bg-white animate-fadeIn">
                 <h2 className="text-lg font-semibold mb-4">Edit Leave Request</h2>
                 <form onSubmit={handleUpdateDate} className="space-y-4">
