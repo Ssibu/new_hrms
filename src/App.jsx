@@ -14,6 +14,7 @@ import Tasks from './pages/Tasks';
 import TaskStatus from './pages/TaskStatus';
 import Profile from './pages/Profile';
 import UserManagement from './pages/UserManagement';
+import AttendancePage from './pages/AttendancePage';
 
 function ProtectedRoute({ children }) {
   const { user } = useConfig();
@@ -43,6 +44,7 @@ function App() {
     '/layout/leave-policy': LeavePolicy,
     '/layout/leave-requests': LeaveRequests,
     '/layout/leave-application': LeaveApplication,
+    '/layout/attendance': AttendancePage,
     '/layout/tasks': Tasks,
     '/layout/task-status': TaskStatus,
     '/layout/profile': Profile,

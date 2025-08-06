@@ -9,6 +9,7 @@ import {
   UserIcon,
   UserGroupIcon,        // <-- NEW: For User Management
   CalendarIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 
 // Centralized navigation configuration with improved icons for better distinction
@@ -54,6 +55,13 @@ export const navigationConfig = [
     icon: CalendarIcon, // Perfect match for applying for dates
     permission: 'leave:create',
     blockForEmployee: false
+  },
+  {
+    to: '/layout/attendance',
+    label: 'My Attendance',
+    icon: ClockIcon, // Represents time and attendance
+    permission: null, // Accessible to all logged-in users
+    blockForEmployee: false // Specifically for employees, so not blocked
   },
   {
     to: '/layout/tasks',
