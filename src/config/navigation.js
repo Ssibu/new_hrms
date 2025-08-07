@@ -10,6 +10,7 @@ import {
   UserGroupIcon,        // <-- NEW: For User Management
   CalendarIcon,
   ClockIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 
 // Centralized navigation configuration with improved icons for better distinction
@@ -48,6 +49,13 @@ export const navigationConfig = [
     icon: InboxArrowDownIcon, // Changed from ClockIcon to represent incoming items
     permission: 'leave:update',
     blockForEmployee: true
+  },
+  {
+    to: '/layout/attendance-report',
+    label: 'Attendance Report',
+    icon: CalendarDaysIcon, // A clear icon for a daily/monthly report
+    permission: 'attendance:read', // This permission restricts access
+    blockForEmployee: true // Employees cannot see this page
   },
   {
     to: '/layout/leave-application',

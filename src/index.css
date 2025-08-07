@@ -1,1 +1,17 @@
 @import "tailwindcss";
+
+/*
+  This new version hides the scrollbar while keeping the element scrollable.
+*/
+
+.custom-scrollbar {
+  /* --- For Firefox --- */
+  /* This property hides the scrollbar in Firefox */
+  scrollbar-width: none;
+}
+
+/* --- For Webkit browsers (Chrome, Safari, Edge) --- */
+/* This pseudo-element selector hides the scrollbar in Webkit-based browsers */
+.custom-scrollbar::-webkit-scrollbar {
+  display: none;
+}
