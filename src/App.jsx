@@ -16,6 +16,7 @@ import Profile from './pages/Profile';
 import UserManagement from './pages/UserManagement';
 import AttendancePage from './pages/AttendancePage';
 import AttendanceReportPage from './pages/AttendanceReportPage'
+import PayrollPage from './pages/PayrollPage';
 
 function ProtectedRoute({ children }) {
   const { user } = useConfig();
@@ -47,6 +48,7 @@ function App() {
     '/layout/leave-application': LeaveApplication,
     '/layout/attendance': AttendancePage,
     '/layout/attendance-report': AttendanceReportPage, 
+    '/layout/payroll': PayrollPage,
     '/layout/tasks': Tasks,
     '/layout/task-status': TaskStatus,
     '/layout/profile': Profile,
