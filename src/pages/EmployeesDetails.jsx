@@ -10,7 +10,7 @@ const EmployeesDetails = () => {
   // --- State for the form modal ---
   const [formData, setFormData] = useState({
     name: '',
-    emailId: '', // Use emailId to match the backend schema
+    email: '', // Use email to match the backend schema
     empId: '',
     number: '',
     address: '',
@@ -123,7 +123,7 @@ const EmployeesDetails = () => {
     setEditId(null);
     setError('');
     setFormData({
-      name: '', emailId: '', empId: '', number: '', address: '', experience: '',
+      name: '', email: '', empId: '', number: '', address: '', experience: '',
       dateOfJoining: '', salary: '', role: 'employee',
     });
     setIsModalOpen(true);
@@ -134,7 +134,7 @@ const EmployeesDetails = () => {
     setError('');
     setFormData({
       name: emp.name || '',
-      emailId: emp.emailId || '',
+      email: emp.email || '',
       empId: emp.empId || '',
       number: emp.number || '',
       address: emp.address || '',
@@ -167,7 +167,7 @@ const EmployeesDetails = () => {
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch =
         emp.name?.toLowerCase().includes(searchLower) ||
-        emp.emailId?.toLowerCase().includes(searchLower) ||
+        emp.email?.toLowerCase().includes(searchLower) ||
         emp.empId?.toLowerCase().includes(searchLower);
       const matchesRole = filterRole === '' || emp.role === filterRole;
       return matchesSearch && matchesRole;
@@ -233,7 +233,7 @@ const EmployeesDetails = () => {
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
                 <input name="name" value={formData.name} onChange={handleInputChange} placeholder="Name" required className="w-full border border-gray-300 rounded-lg p-2" />
-                <input name="emailId" type="email" value={formData.emailId} onChange={handleInputChange} placeholder="Email" required className="w-full border border-gray-300 rounded-lg p-2" />
+                <input name="email" type="email" value={formData.email} onChange={handleInputChange} placeholder="Email" required className="w-full border border-gray-300 rounded-lg p-2" />
                 <input name="empId" value={formData.empId} onChange={handleInputChange} placeholder="Employee ID" required className="w-full border border-gray-300 rounded-lg p-2" />
                 <input name="number" value={formData.number} onChange={handleInputChange} placeholder="Phone Number" required className="w-full border border-gray-300 rounded-lg p-2" />
                 <input name="address" value={formData.address} onChange={handleInputChange} placeholder="Address" required className="w-full border border-gray-300 rounded-lg p-2" />
@@ -262,7 +262,7 @@ const EmployeesDetails = () => {
           <thead className="bg-blue-100">
             <tr>
               <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-blue-200" onClick={() => handleSort('name')}><div className="flex items-center">Name <SortIcon field="name" /></div></th>
-              <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-blue-200" onClick={() => handleSort('emailId')}><div className="flex items-center">Email <SortIcon field="emailId" /></div></th>
+              <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-blue-200" onClick={() => handleSort('email')}><div className="flex items-center">Email <SortIcon field="email" /></div></th>
               <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-blue-200" onClick={() => handleSort('empId')}><div className="flex items-center">Emp ID <SortIcon field="empId" /></div></th>
               <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-blue-200" onClick={() => handleSort('role')}><div className="flex items-center">Role <SortIcon field="role" /></div></th>
               <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Phone</th>
@@ -275,7 +275,7 @@ const EmployeesDetails = () => {
             {filteredAndSortedEmployees.map((emp) => (
               <tr key={emp._id} className="hover:bg-blue-50">
                 <td className="px-6 py-4 whitespace-nowrap">{emp.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{emp.emailId}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{emp.email}</td>
                 <td className="px-6 py-4 whitespace-nowrap">{emp.empId}</td>
                 <td className="px-6 py-4 whitespace-nowrap capitalize">{emp.role}</td>
                 <td className="px-6 py-4 whitespace-nowrap">{emp.number}</td>
