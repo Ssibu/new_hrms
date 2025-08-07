@@ -11,6 +11,7 @@ import {
   CalendarIcon,
   ClockIcon,
   CalendarDaysIcon,
+  CurrencyRupeeIcon,
 } from '@heroicons/react/24/outline';
 
 // Centralized navigation configuration with improved icons for better distinction
@@ -56,6 +57,13 @@ export const navigationConfig = [
     icon: CalendarDaysIcon, // A clear icon for a daily/monthly report
     permission: 'attendance:read', // This permission restricts access
     blockForEmployee: true // Employees cannot see this page
+  },
+  {
+    to: '/layout/payroll',
+    label: 'Payroll',
+    icon: CurrencyRupeeIcon,
+    permission: 'payroll:read', // Restrict to users with payroll permission
+    blockForEmployee: true
   },
   {
     to: '/layout/leave-application',

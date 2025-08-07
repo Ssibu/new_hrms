@@ -21,7 +21,7 @@ const Sidebar = ({ isSidebarOpen }) => {
       {/* --- MODIFIED: Added padding classes --- */}
       {/* `py-2`: Adds vertical padding (top and bottom) inside the scrollable area. */}
       {/* `pr-2`: Adds padding to the right, moving the scrollbar slightly to the left. */}
-      <nav className="flex flex-col gap-4 flex-grow overflow-y-auto custom-scrollbar py-2 pr-2">
+      <nav className="flex flex-col gap-4 flex-grow overflow-y-auto custom-scrollbar py-2 ">
         {filteredNavItems.map(item => {
           const IconComponent = item.icon;
           const isActive = location.pathname.startsWith(item.to);
