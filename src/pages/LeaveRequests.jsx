@@ -6,7 +6,7 @@ import {
   EyeIcon,
   FunnelIcon,
   PencilSquareIcon,
-  EllipsisVerticalIcon, // Icon for the three-dot menu
+  EllipsisVerticalIcon,
 } from '@heroicons/react/24/outline';
 
 // Helper function to calculate working days (excluding weekends) on the client-side
@@ -43,16 +43,14 @@ const LeaveRequests = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   
-  // Modal State Management
   const [showActionModal, setShowActionModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   
-  // --- NEW: State to manage which action menu is open ---
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
   const menuRef = useRef(null);
 
-  // Data for Modals
   const [actionData, setActionData] = useState({ status: '', remarks: '' });
   const [editFormData, setEditFormData] = useState({ fromDate: '', toDate: '' });
   
@@ -103,7 +101,6 @@ const LeaveRequests = () => {
     initialFetch();
   }, [fetchRequests, fetchPolicies]);
 
-  // --- NEW: useEffect to handle clicking outside the action menu ---
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -116,19 +113,27 @@ const LeaveRequests = () => {
     };
   }, []);
 
-  // --- ACTION HANDLERS (modified to close the menu) ---
+  const handleMenuOpen = (e, requestId) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMenuPosition({
+      top: rect.bottom + window.scrollY + 5,
+      left: rect.left + window.scrollX - 172,
+    });
+    setOpenActionMenuId(openActionMenuId === requestId ? null : requestId);
+  };
 
   const handleActionClick = (request, status) => {
     setActionData({ status, remarks: '' });
     setSelectedRequest(request);
     setShowActionModal(true);
-    setOpenActionMenuId(null); // Close menu
+    setOpenActionMenuId(null);
   };
 
   const handleViewDetails = (request) => {
     setSelectedRequest(request);
     setShowDetailsModal(true);
-    setOpenActionMenuId(null); // Close menu
+    setOpenActionMenuId(null);
   };
   
   const handleEditClick = (request) => {
@@ -138,7 +143,7 @@ const LeaveRequests = () => {
         toDate: new Date(request.toDate).toISOString().split('T')[0],
     });
     setShowEditModal(true);
-    setOpenActionMenuId(null); // Close menu
+    setOpenActionMenuId(null);
   };
 
   const submitAction = async () => {
@@ -177,9 +182,8 @@ const LeaveRequests = () => {
         if (response.ok) {
             setMessage('Leave request dates updated successfully!');
             setShowEditModal(false);
-            fetchRequests(); // Refresh the list to show new data
+            fetchRequests();
         } else {
-            // Display specific error from backend in the modal
             alert(`Error: ${data.error || 'Failed to update dates.'}`);
         }
     } catch (error) {
@@ -188,7 +192,6 @@ const LeaveRequests = () => {
     }
   };
 
-  // --- HELPER FUNCTIONS ---
   const getStatusColor = (status) => {
     switch (status) {
       case 'Pending': return 'bg-yellow-100 text-yellow-800';
@@ -199,7 +202,6 @@ const LeaveRequests = () => {
   };
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString();
   const getLeaveTypeName = (type) => policies.find(p => p.type === type)?.description || type;
-
 
   if (loading) {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
@@ -269,7 +271,7 @@ const LeaveRequests = () => {
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-gray-200"> 
               {requests.length > 0 ? requests.map((request) => (
                 <tr key={request._id}>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -283,61 +285,13 @@ const LeaveRequests = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(request.fromDate)} - {formatDate(request.toDate)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-bold text-gray-900">{request.numberOfDays}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-center"><span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>{request.status}</span></td>
-                  
-                  {/* --- MODIFIED: Actions Cell with Dropdown Menu --- */}
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                    <div className="relative inline-block text-left" ref={openActionMenuId === request._id ? menuRef : null}>
-                      <div>
-                        <button
-                          onClick={() => setOpenActionMenuId(openActionMenuId === request._id ? null : request._id)}
-                          className="inline-flex justify-center w-full rounded-md p-2 text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500"
-                        >
-                          <EllipsisVerticalIcon className="h-5 w-5" />
-                        </button>
-                      </div>
-
-                      {/* Dropdown panel, conditionally rendered */}
-                      {openActionMenuId === request._id && (
-                        <div
-                          className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
-                        >
-                          <div className="py-1">
-                            <button
-                              onClick={() => handleViewDetails(request)}
-                              className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            >
-                              <EyeIcon className="h-5 w-5 text-blue-500" />
-                              View Details
-                            </button>
-                            {request.status === 'Pending' && (
-                              <>
-                                <button
-                                  onClick={() => handleEditClick(request)}
-                                  className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  <PencilSquareIcon className="h-5 w-5 text-indigo-500" />
-                                  Edit Dates
-                                </button>
-                                <button
-                                  onClick={() => handleActionClick(request, 'Approved')}
-                                  className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  <CheckIcon className="h-5 w-5 text-green-500" />
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => handleActionClick(request, 'Rejected')}
-                                  className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  <XMarkIcon className="h-5 w-5 text-red-500" />
-                                  Reject
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    <button
+                      onClick={(e) => handleMenuOpen(e, request._id)}
+                      className="inline-flex justify-center rounded-md p-2 text-gray-500 hover:bg-gray-100"
+                    >
+                      <EllipsisVerticalIcon className="h-5 w-5" />
+                    </button>
                   </td>
                 </tr>
               )) : <tr><td colSpan="6" className="text-center py-10 text-gray-500">No leave requests match the current filters.</td></tr>}
@@ -345,8 +299,43 @@ const LeaveRequests = () => {
           </table>
         </div>
       </div>
+      
+      {openActionMenuId && (
+        <div
+          ref={menuRef}
+          style={{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
+          className="fixed mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20 animate-fadeIn"
+        >
+          <div className="py-1">
+            {(() => {
+              const request = requests.find(r => r._id === openActionMenuId);
+              if (!request) return null;
+              
+              return (
+                <>
+                  <button onClick={() => handleViewDetails(request)} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    <EyeIcon className="h-5 w-5 text-blue-500" /> View Details
+                  </button>
+                  {request.status === 'Pending' && (
+                    <>
+                      <button onClick={() => handleEditClick(request)} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        <PencilSquareIcon className="h-5 w-5 text-indigo-500" /> Edit Dates
+                      </button>
+                      <button onClick={() => handleActionClick(request, 'Approved')} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        <CheckIcon className="h-5 w-5 text-green-500" /> Approve
+                      </button>
+                      <button onClick={() => handleActionClick(request, 'Rejected')} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        <XMarkIcon className="h-5 w-5 text-red-500" /> Reject
+                      </button>
+                    </>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
-      {/* Details Modal */}
       {showDetailsModal && selectedRequest && (
         <div className="fixed inset-0 bg-gray-600/70 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center">
             <div className="relative p-5 border w-full max-w-md shadow-lg rounded-md bg-white animate-fadeIn">
@@ -370,7 +359,6 @@ const LeaveRequests = () => {
         </div>
       )}
 
-      {/* Action Modal */}
       {showActionModal && selectedRequest && (
         <div className="fixed inset-0 bg-gray-600/70 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center">
             <div className="relative p-5 border w-full max-w-md shadow-lg rounded-md bg-white animate-fadeIn">
@@ -389,7 +377,6 @@ const LeaveRequests = () => {
         </div>
       )}
 
-      {/* Edit Request Modal */}
       {showEditModal && selectedRequest && (
         <div className="fixed inset-0 bg-gray-600/70 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center">
             <div className="relative p-5 border w-full max-w-lg shadow-lg rounded-md bg-white animate-fadeIn">
@@ -442,7 +429,6 @@ const LeaveRequests = () => {
             </div>
         </div>
       )}
-
     </div>
   );
 };
