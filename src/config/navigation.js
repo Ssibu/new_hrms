@@ -11,6 +11,7 @@ import {
   CalendarIcon,
   ClockIcon,
   CalendarDaysIcon,
+  Cog8ToothIcon,
   CurrencyRupeeIcon,
 } from '@heroicons/react/24/outline';
 
@@ -63,6 +64,13 @@ export const navigationConfig = [
     label: 'Payroll',
     icon: CurrencyRupeeIcon,
     permission: 'payroll:read', // Restrict to users with payroll permission
+    blockForEmployee: true
+  },
+  {
+    to: '/layout/salary-components',
+    label: 'Salary Components',
+    icon: Cog8ToothIcon, // Represents configuration/management
+    permission: 'payroll:manage', // Restrict to users who can manage payroll
     blockForEmployee: true
   },
   {
