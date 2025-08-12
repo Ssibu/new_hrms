@@ -18,7 +18,7 @@ import AttendancePage from './pages/AttendancePage';
 import AttendanceReportPage from './pages/AttendanceReportPage'
 import PayrollPage from './pages/PayrollPage';
 import SalaryComponentsPage from './pages/SalaryComponentsPage';
-
+import AssignSalaryPage from './pages/AssignSalaryPage';
 function ProtectedRoute({ children }) {
   const { user } = useConfig();
   return user ? children : <Navigate to="/auth" />;
@@ -51,6 +51,7 @@ function App() {
     '/layout/attendance-report': AttendanceReportPage, 
     '/layout/payroll': PayrollPage,
     '/layout/salary-components': SalaryComponentsPage,
+    '/layout/assign-salary': AssignSalaryPage,
     '/layout/tasks': Tasks,
     '/layout/task-status': TaskStatus,
     '/layout/profile': Profile,

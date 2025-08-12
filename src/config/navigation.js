@@ -13,6 +13,7 @@ import {
   CalendarDaysIcon,
   Cog8ToothIcon,
   CurrencyRupeeIcon,
+  DocumentChartBarIcon
 } from '@heroicons/react/24/outline';
 
 // Centralized navigation configuration with improved icons for better distinction
@@ -70,6 +71,13 @@ export const navigationConfig = [
     to: '/layout/salary-components',
     label: 'Salary Components',
     icon: Cog8ToothIcon, // Represents configuration/management
+    permission: 'payroll:manage', // Restrict to users who can manage payroll
+    blockForEmployee: true
+  },
+  {
+    to: '/layout/assign-salary',
+    label: 'Assign Salary',
+    icon: DocumentChartBarIcon, // Represents creating a salary profile
     permission: 'payroll:manage', // Restrict to users who can manage payroll
     blockForEmployee: true
   },

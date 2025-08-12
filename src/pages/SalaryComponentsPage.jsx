@@ -15,11 +15,10 @@ const SalaryComponentsPage = () => {
   const [saving, setSaving] = useState(false);
   const [currentComponent, setCurrentComponent] = useState(null);
   
+  // --- MODIFIED: The form state is now simpler ---
   const initialFormState = {
     name: '',
-    type: 'Earning',
-    calculationType: 'Percentage',
-    value: ''
+    type: 'Earning'
   };
   const [formData, setFormData] = useState(initialFormState);
 
@@ -42,15 +41,14 @@ const SalaryComponentsPage = () => {
   }, [fetchComponents]);
 
   const handleOpenModal = (component = null) => {
-    setError(''); // Clear errors when opening modal
+    setError('');
     if (component) {
       setIsEditing(true);
       setCurrentComponent(component);
+      // --- MODIFIED: Only set name and type ---
       setFormData({
         name: component.name,
-        type: component.type,
-        calculationType: component.calculationType,
-        value: component.value
+        type: component.type
       });
     } else {
       setIsEditing(false);
@@ -74,6 +72,7 @@ const SalaryComponentsPage = () => {
     const method = isEditing ? 'PUT' : 'POST';
 
     try {
+      // --- MODIFIED: The body now only sends name and type ---
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -136,21 +135,21 @@ const SalaryComponentsPage = () => {
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
+          {/* --- MODIFIED: Simplified Table Header --- */}
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Component Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Default Calculation Rule</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
-                <tr><td colSpan="4" className="text-center py-10 text-gray-500">Loading Components...</td></tr>
+                <tr><td colSpan="3" className="text-center py-10 text-gray-500">Loading Components...</td></tr>
               ) : components.length === 0 ? (
                 <tr>
-                    <td colSpan="4" className="text-center py-16 text-gray-500">
+                    <td colSpan="3" className="text-center py-16 text-gray-500">
                         <Cog8ToothIcon className="mx-auto h-12 w-12 text-gray-400" />
                         <h3 className="mt-2 text-sm font-medium text-gray-900">No components found</h3>
                         <p className="mt-1 text-sm text-gray-500">Get started by adding a new salary component.</p>
@@ -163,9 +162,6 @@ const SalaryComponentsPage = () => {
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${comp.type === 'Earning' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                       {comp.type}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {comp.calculationType === 'Percentage' ? `${comp.value}% of Basic Salary` : `Fixed Amount of ₹${comp.value}`}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                     <div className="flex justify-center gap-4">
@@ -180,7 +176,7 @@ const SalaryComponentsPage = () => {
         </div>
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* --- MODIFIED: Simplified Add/Edit Modal --- */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md animate-fadeIn">
@@ -200,21 +196,7 @@ const SalaryComponentsPage = () => {
                     <option value="Deduction">Deduction (subtracts from salary)</option>
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Calculation Type</label>
-                        <select value={formData.calculationType} onChange={(e) => setFormData({...formData, calculationType: e.target.value})} className="w-full p-2 border border-gray-300 rounded-md">
-                            <option value="Percentage">Percentage</option>
-                            <option value="Fixed">Fixed Amount</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {formData.calculationType === 'Percentage' ? 'Value (%)' : 'Amount (₹)'}
-                        </label>
-                        <input type="number" step="0.01" value={formData.value} onChange={(e) => setFormData({...formData, value: e.target.value})} className="w-full p-2 border border-gray-300 rounded-md" placeholder={formData.calculationType === 'Percentage' ? 'e.g., 40' : 'e.g., 5000'} required />
-                    </div>
-                </div>
+                {/* The calculationType and value fields have been removed from this form */}
               </div>
               <div className="flex justify-end gap-3 bg-gray-50 p-4 rounded-b-lg">
                 <button type="button" onClick={handleCloseModal} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 font-semibold">Cancel</button>
