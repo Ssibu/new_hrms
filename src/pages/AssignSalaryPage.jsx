@@ -1,21 +1,18 @@
-import React, {useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useConfig } from '../context/ConfigContext';
-import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, ExclamationTriangleIcon, CalculatorIcon } from '@heroicons/react/24/outline';
 
 const AssignSalaryPage = () => {
   const { backendUrl } = useConfig();
-  
-  // Data state
-  const [employees, setEmployees] = useState([]);
-  const [allComponents, setAllComponents] = useState([]); // Master list from the library
 
-  // Selection and Form State
+  // Master Data
+  const [employees, setEmployees] = useState([]);
+  const [allComponents, setAllComponents] = useState([]);
+
+  // UI & Form State
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
-  // The main form state is just an array of the components assigned to the selected employee.
   const [assignedComponents, setAssignedComponents] = useState([]);
-  
-  // UI State
-  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -28,238 +25,291 @@ const AssignSalaryPage = () => {
           fetch(`${backendUrl}/api/employees`, { credentials: 'include' }),
           fetch(`${backendUrl}/api/salary-components`, { credentials: 'include' })
         ]);
-        if (employeesRes.ok) setEmployees(await employeesRes.json());
-        if (componentsRes.ok) setAllComponents(await componentsRes.json());
+        if (employeesRes.ok) {
+          const empData = await employeesRes.json();
+          setEmployees(empData.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+        }
+        if (componentsRes.ok) {
+            const compData = await componentsRes.json();
+            setAllComponents(compData.sort((a,b) => {
+                if (a.name.toLowerCase().includes('basic')) return -1;
+                if (b.name.toLowerCase().includes('basic')) return 1;
+                if (a.type !== b.type) return a.type.localeCompare(b.type);
+                return a.name.localeCompare(b.name);
+            }));
+        }
       } catch (err) {
         setError('Failed to load initial data. Please refresh the page.');
-        console.error(err);
       }
     };
     fetchInitialData();
   }, [backendUrl]);
 
-  // This effect runs whenever a new employee is selected from the dropdown
+  // Fetch employee's existing profile when selected
   useEffect(() => {
     if (!selectedEmployeeId) {
       setAssignedComponents([]);
+      setMessage('');
+      setError('');
       return;
     }
     const fetchEmployeeProfile = async () => {
-      setLoadingProfile(true);
+      setLoading(true);
       setError('');
       setMessage('');
       try {
         const res = await fetch(`${backendUrl}/api/employee-salary-profiles/${selectedEmployeeId}`, { credentials: 'include' });
-        if (!res.ok) throw new Error('Failed to fetch salary profile for this employee.');
+        if (!res.ok) throw new Error('Failed to fetch salary profile.');
         const data = await res.json();
-        // The backend sends populated components, but we only need the ID for our state.
-        const sanitizedComponents = data ? data.components.map(c => ({
-            component: c.component._id, // Store only the ID
+        
+        if (data && data.components) {
+          const sanitizedProfile = data.components.map(c => ({
+            componentId: c.component._id,
             calculationType: c.calculationType,
             value: c.value,
-            days: c.days
-        })) : [];
-        setAssignedComponents(sanitizedComponents);
+            percentageOf: c.percentageOf || [],
+            amount: c.amount,
+          }));
+          setAssignedComponents(sanitizedProfile);
+        } else {
+          setAssignedComponents([]);
+        }
       } catch (err) {
         setError(err.message);
       } finally {
-        setLoadingProfile(false);
+        setLoading(false);
       }
     };
     fetchEmployeeProfile();
   }, [selectedEmployeeId, backendUrl]);
-
-  // CRITICAL: Dynamically calculate the basic salary from the components list
-  const basicSalary = useMemo(() => {
-    const basicCompMaster = allComponents.find(c => c.name.toLowerCase().includes('basic'));
-    if (!basicCompMaster) return 0;
-    const assignedBasic = assignedComponents.find(c => c.component === basicCompMaster._id);
-    if (assignedBasic && assignedBasic.calculationType === 'Fixed') {
-      return parseFloat(assignedBasic.value) || 0;
-    }
-    return 0;
-  }, [assignedComponents, allComponents]);
   
-  // Sort the master components to always show "Basic Salary" first
-  const sortedComponents = useMemo(() => {
-    return [...allComponents].sort((a, b) => {
-      const aIsBasic = a.name.toLowerCase().includes('basic');
-      const bIsBasic = b.name.toLowerCase().includes('basic');
-      if (aIsBasic) return -1;
-      if (bIsBasic) return 1;
-      return a.name.localeCompare(b.name);
-    });
-  }, [allComponents]);
+  const calculateAndSetProfile = useCallback((profile) => {
+    const MAX_ITERATIONS = 10;
+    let iterations = 0;
+    let changed = true;
+    
+    const newProfile = profile.map(p => ({ ...p, amount: p.calculationType === 'Fixed' ? Number(p.value) || 0 : 0 }));
+    const amountMap = new Map(newProfile.filter(p => p.calculationType === 'Fixed').map(p => [p.componentId, p.amount]));
 
-  // Core logic for handling changes in the dynamic table UI
-  const handleComponentChange = (masterCompId, field, value) => {
-    setAssignedComponents(currentAssigned => {
-      const isChecked = field === 'checked' ? value : currentAssigned.some(c => c.component === masterCompId);
-      const existingIndex = currentAssigned.findIndex(c => c.component === masterCompId);
-      
-      if (isChecked) {
-        if (existingIndex > -1) {
-          const updated = [...currentAssigned];
-          updated[existingIndex] = { ...updated[existingIndex], [field]: value };
-          return updated;
-        } else {
-          const masterComp = allComponents.find(c => c._id === masterCompId);
-          const isBasic = masterComp.name.toLowerCase().includes('basic');
-          const newComponent = { component: masterCompId, calculationType: isBasic ? 'Fixed' : 'Percentage', value: '', days: false };
-          return [...currentAssigned, newComponent];
+    while (changed && iterations < MAX_ITERATIONS) {
+      changed = false;
+      iterations++;
+
+      newProfile.forEach(comp => {
+        if (comp.calculationType === 'Percentage' && !amountMap.has(comp.componentId)) {
+          const baseComponents = comp.percentageOf;
+          const areAllBaseComponentsCalculated = baseComponents.every(id => amountMap.has(id));
+
+          if (areAllBaseComponentsCalculated) {
+            const baseAmount = baseComponents.reduce((sum, id) => sum + (amountMap.get(id) || 0), 0);
+            const percentageValue = Number(comp.value) || 0;
+            const calculatedAmount = (baseAmount * percentageValue) / 100;
+            
+            comp.amount = calculatedAmount;
+            amountMap.set(comp.componentId, calculatedAmount);
+            changed = true;
+          }
         }
-      } else {
-        return currentAssigned.filter(c => c.component !== masterCompId);
-      }
-    });
-  };
+      });
+    }
 
-  // Helper function to calculate amount for both display and saving
-  const calculateAmount = (component) => {
-    if (!component) return 0;
-    if (component.calculationType === 'Fixed') {
-      return parseFloat(component.value) || 0;
+    if (iterations === MAX_ITERATIONS && newProfile.some(p => !amountMap.has(p.componentId))) {
+      setError("Calculation Error: Check for circular dependencies (e.g., A depends on B, and B depends on A).");
     }
-    if (component.calculationType === 'Percentage') {
-      const percent = parseFloat(component.value) || 0;
-      return (basicSalary * percent) / 100;
+
+    setAssignedComponents(newProfile);
+  }, [setError]);
+
+  const handleCheckboxChange = (masterCompId, isChecked) => {
+    let updatedProfile;
+    if (isChecked) {
+      const masterComp = allComponents.find(c => c._id === masterCompId);
+      const isBasic = masterComp.name.toLowerCase().includes('basic');
+      const newComponent = {
+        componentId: masterCompId,
+        calculationType: isBasic ? 'Fixed' : 'Percentage',
+        value: 0,
+        percentageOf: [],
+        amount: 0,
+      };
+      updatedProfile = [...assignedComponents, newComponent];
+    } else {
+      updatedProfile = assignedComponents
+        .filter(c => c.componentId !== masterCompId)
+        .map(c => ({
+            ...c,
+            percentageOf: c.percentageOf.filter(depId => depId !== masterCompId)
+        }));
     }
-    return 0;
+    calculateAndSetProfile(updatedProfile);
   };
   
-  // Handler for saving the entire profile
+  const handleFieldChange = (componentId, field, value) => {
+      const updatedProfile = assignedComponents.map(c => {
+          if (c.componentId === componentId) {
+              const newComp = { ...c, [field]: value };
+              if (field === 'calculationType' && value === 'Fixed') {
+                  newComp.percentageOf = [];
+              }
+              return newComp;
+          }
+          return c;
+      });
+      calculateAndSetProfile(updatedProfile);
+  };
+
+  const handlePercentageOfChange = (componentId, dependencyId, isChecked) => {
+    const updatedProfile = assignedComponents.map(c => {
+        if (c.componentId === componentId) {
+            const currentDeps = c.percentageOf || [];
+            const newDeps = isChecked 
+                ? [...currentDeps, dependencyId]
+                : currentDeps.filter(id => id !== dependencyId);
+            return { ...c, percentageOf: newDeps };
+        }
+        return c;
+    });
+    calculateAndSetProfile(updatedProfile);
+  };
+
   const handleSaveProfile = async (e) => {
     e.preventDefault();
+    if (!selectedEmployeeId) {
+        setError('No employee selected.');
+        return;
+    }
     setSaving(true);
     setError('');
     setMessage('');
     try {
-      if (basicSalary <= 0) {
-        throw new Error('You must assign a "Basic Salary" component with a fixed value greater than zero.');
-      }
-
-      // --- FINAL FIX: Data Sanitization and Calculation ---
-      // This maps over the assigned components and adds the calculated 'amount' to each one before sending.
-      const payloadComponents = assignedComponents.map(comp => ({
-        component: comp.component,
-        calculationType: comp.calculationType,
-        value: comp.value,
-        days: comp.days || false,
-        amount: parseFloat(calculateAmount(comp).toFixed(2)) // <-- CRITICAL: Add the calculated amount
-      }));
+      const payload = {
+        components: assignedComponents.map(c => ({
+          component: c.componentId,
+          calculationType: c.calculationType,
+          value: Number(c.value) || 0,
+          percentageOf: c.percentageOf,
+          amount: Number(c.amount.toFixed(2))
+        }))
+      };
 
       const response = await fetch(`${backendUrl}/api/employee-salary-profiles/${selectedEmployeeId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        // We send the new payload that includes the 'amount' field.
-        body: JSON.stringify({
-          basicSalary: basicSalary, // Send the calculated basic salary
-          components: payloadComponents
-        })
+        body: JSON.stringify(payload)
       });
-
-      if (!response.ok) throw new Error((await response.json()).error);
-      setMessage('Salary profile saved successfully!');
+      
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to save profile.');
+      
+      setMessage(result.message || 'Salary profile saved successfully!');
     } catch (err) {
       setError(err.message);
     } finally {
       setSaving(false);
     }
   };
-
+  
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Assign Salary Components</h1>
-        <p className="mt-1 text-sm text-gray-500">Select an employee to manage their salary structure.</p>
+        <h1 className="text-2xl font-bold text-gray-900">Assign Salary Profile</h1>
+        <p className="mt-1 text-sm text-gray-500">Select an employee to create or manage their salary structure.</p>
       </div>
 
       <div className="bg-white p-4 rounded-lg shadow">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Select Employee</label>
-        <select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="w-full md:w-1/2 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-          <option value="">-- Choose an Employee to Configure --</option>
+        <label htmlFor="employee-select" className="block text-sm font-medium text-gray-700 mb-1">Select Employee</label>
+        <select id="employee-select" value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="w-full md:w-1/2 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+          <option value="">-- Choose an Employee --</option>
           {employees.map(emp => <option key={emp._id} value={emp._id}>{emp.name} ({emp.empId})</option>)}
         </select>
       </div>
 
       {selectedEmployeeId && (
-        loadingProfile ? <div className="text-center p-8">Loading Profile...</div> :
+        loading ? <div className="text-center p-8">Loading Profile...</div> :
         <form onSubmit={handleSaveProfile} className="bg-white rounded-lg shadow animate-fadeIn">
           <div className="p-6 space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Salary Components</h3>
-              <p className="text-sm text-gray-500 mt-1">First, assign and define the "Basic Salary". This will serve as the base for all percentage-based calculations.</p>
-            </div>
-            
+            {error && <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 flex items-center gap-3"><ExclamationTriangleIcon className="h-5 w-5" /><span>{error}</span></div>}
+            {message && <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-700 flex items-center gap-3"><CheckCircleIcon className="h-5 w-5" /><span>{message}</span></div>}
+
             <div className="overflow-x-auto rounded-lg border">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="w-12 px-4 py-3"></th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Component</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Calculation Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Pro-rated</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Calculated Amount</th>
+                    <th className="p-3 w-12 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Use</th>
+                    <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Component</th>
+                    <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calculation Rule</th>
+                    {/* --- NEW COLUMN --- */}
+                    <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Percentage Of</th>
+                    <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {sortedComponents.map(masterComp => {
-                    const assignedData = assignedComponents.find(c => c.component === masterComp._id);
-                    const isChecked = !!assignedData;
-                    const isBasic = masterComp.name.toLowerCase().includes('basic');
+                  {allComponents.length === 0 ? (
+                    <tr><td colSpan="5" className="text-center p-8 text-gray-500"><CalculatorIcon className="mx-auto h-10 w-10 text-gray-400" />No salary components found in library.</td></tr>
+                  ) : (
+                    allComponents.map(masterComp => {
+                      const assignedData = assignedComponents.find(c => c.componentId === masterComp._id);
+                      const isAssigned = !!assignedData;
+                      const potentialDeps = assignedComponents.filter(c => c.componentId !== masterComp._id);
 
-                    return (
-                      <tr key={masterComp._id} className={isChecked ? 'bg-blue-50' : ''}>
-                        <td className="px-4 py-3">
-                          <input type="checkbox" checked={isChecked} onChange={(e) => handleComponentChange(masterComp._id, 'checked', e.target.checked)} className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="font-medium text-gray-800">{masterComp.name}</span>
-                          <span className={`ml-2 text-xs font-semibold ${masterComp.type === 'Earning' ? 'text-green-600' : 'text-red-600'}`}>({masterComp.type})</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {isChecked && (
-                            isBasic ? <span className="text-sm text-gray-500 italic">Fixed</span> :
-                            <select value={assignedData.calculationType} onChange={(e) => handleComponentChange(masterComp._id, 'calculationType', e.target.value)} className="w-full p-2 border border-gray-300 rounded-md">
-                              <option value="Fixed">Fixed</option>
-                              <option value="Percentage">Percentage</option>
-                            </select>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                           {isChecked && (
-                            <input type="number" step="0.01" value={assignedData.value} onChange={(e) => handleComponentChange(masterComp._id, 'value', e.target.value)} className="w-full p-2 border border-gray-300 rounded-md" required />
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                           {isChecked && (
-                            <input type="checkbox" checked={assignedData.days || false} onChange={(e) => handleComponentChange(masterComp._id, 'days', e.target.checked)} className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                          )}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          {isChecked && (
-                            <span className="font-medium text-gray-700">₹ {calculateAmount(assignedData).toFixed(2)}</span>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
+                      return (
+                        <tr key={masterComp._id} className={`${isAssigned ? 'bg-blue-50' : 'bg-white'} align-top transition-colors duration-200`}>
+                          <td className="p-3 text-center">
+                              <input type="checkbox" checked={isAssigned} onChange={(e) => handleCheckboxChange(masterComp._id, e.target.checked)} className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                          </td>
+                          <td className="p-3 whitespace-nowrap">
+                              <p className="font-bold text-gray-800">{masterComp.name}</p>
+                              <p className={`text-xs font-semibold ${masterComp.type === 'Earning' ? 'text-green-700' : 'text-red-700'}`}>{masterComp.type}</p>
+                              <p className={`text-xs mt-1 ${masterComp.isProRata ? 'text-blue-600' : 'text-gray-500'}`}>{masterComp.isProRata ? 'Pro-Rata Eligible' : 'Not Pro-Rata'}</p>
+                          </td>
+                          <td className="p-3 min-w-[200px]">
+                            {isAssigned && (
+                              <div className="flex gap-2 items-center">
+                                  <select value={assignedData.calculationType} onChange={e => handleFieldChange(masterComp._id, 'calculationType', e.target.value)} className="w-32 p-2 border border-gray-300 rounded-md text-sm">
+                                      <option value="Fixed">Fixed</option>
+                                      <option value="Percentage">Percentage</option>
+                                  </select>
+                                  <input type="number" placeholder="Value" step="any" value={assignedData.value} onChange={e => handleFieldChange(masterComp._id, 'value', e.target.value)} className="w-28 p-2 border border-gray-300 rounded-md text-sm" required />
+                                  {assignedData.calculationType === 'Percentage' && <span className="font-semibold text-gray-600">%</span>}
+                              </div>
+                            )}
+                          </td>
+                           {/* --- NEW TD FOR THE DEDICATED COLUMN --- */}
+                          <td className="p-3 min-w-[250px]">
+                            {isAssigned && assignedData.calculationType === 'Percentage' && (
+                                <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+                                    {potentialDeps.length > 0 ? potentialDeps.map(dep => {
+                                        const depMaster = allComponents.find(c => c._id === dep.componentId);
+                                        const isChecked = (assignedData.percentageOf || []).includes(dep.componentId);
+                                        return (
+                                            <label key={dep.componentId} className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer text-sm">
+                                                <input type="checkbox" checked={isChecked} onChange={e => handlePercentageOfChange(masterComp._id, dep.componentId, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                                <span>{depMaster?.name}</span>
+                                            </label>
+                                        )
+                                    }) : <p className="text-xs text-gray-500 italic">No other assigned components to use as a base.</p>}
+                                </div>
+                            )}
+                          </td>
+                          <td className="p-3 whitespace-nowrap text-lg font-bold text-gray-800">
+                             {isAssigned && `₹ ${assignedData.amount.toFixed(2)}`}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
           <div className="flex justify-end gap-3 bg-gray-50 p-4 rounded-b-lg border-t">
-            <button type="submit" disabled={saving || loadingProfile} className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 font-semibold disabled:bg-blue-300">
+            <button type="submit" disabled={saving || loading} className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
               {saving ? 'Saving...' : 'Save Salary Profile'}
             </button>
           </div>
         </form>
       )}
-
-      {error && <div className="p-4 mt-4 rounded-lg bg-red-50 border border-red-200 text-red-700 flex items-center gap-3"><ExclamationTriangleIcon className="h-5 w-5" /><span>{error}</span></div>}
-      {message && <div className="p-4 mt-4 rounded-lg bg-green-50 border border-green-200 text-green-700 flex items-center gap-3"><CheckCircleIcon className="h-5 w-5" /><span>{message}</span></div>}
     </div>
   );
 };
