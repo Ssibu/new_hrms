@@ -228,4 +228,4 @@ const PayrollPage = () => {
   );
 };
 
-export default PayrollPage;
+export default PayrollPage; 
