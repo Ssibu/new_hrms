@@ -225,7 +225,7 @@ const PayrollPage = () => {
         )}
       </div>
     </div>
-  );
+  ); 
 };
 
 export default PayrollPage; 
