@@ -13,7 +13,7 @@ const Layout = () => {
 
   const handleLogout = async () => {
     try {
-      await fetch(`${backendUrl}/api/auth/logout`, {
+      await fetch(`${backendUrl}/api/auth/logout`, { 
         method: 'POST',
         credentials: 'include',
       });
