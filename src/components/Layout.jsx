@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { useConfig } from '../context/ConfigContext';
+import { useConfig } from '../context/ConfigContext';   
 
 const Layout = () => {
   const { setUser, backendUrl } = useConfig();
